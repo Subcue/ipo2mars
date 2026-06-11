@@ -15,6 +15,17 @@ import type { Env } from './types'
 
 const app = new Hono<{ Bindings: Env }>()
 
+// Canonical host: apex. www.ipo2mars.com is attached to this worker too and
+// 301s here, preserving path + query.
+app.use('*', async (c, next) => {
+  const url = new URL(c.req.url)
+  if (url.hostname === 'www.ipo2mars.com') {
+    url.hostname = 'ipo2mars.com'
+    return c.redirect(url.toString(), 301)
+  }
+  await next()
+})
+
 app.use(trimTrailingSlash())
 
 app.route('/api', api)

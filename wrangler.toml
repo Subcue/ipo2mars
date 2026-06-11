@@ -10,7 +10,17 @@
 name = "ipo2mars"
 main = "src/index.tsx"
 compatibility_date = "2026-06-01"
-workers_dev = true
+# Production serves ONLY on the custom domain; *.workers.dev and version
+# preview URLs are disabled (applies on the next Workers Builds deploy).
+workers_dev = false
+preview_urls = false
+
+# PREREQUISITE: ipo2mars.com must be an active zone in this Cloudflare
+# account — custom_domain deploys create the DNS records automatically.
+routes = [
+  { pattern = "ipo2mars.com", custom_domain = true },
+  { pattern = "www.ipo2mars.com", custom_domain = true },
+]
 
 # Runs in CI (Workers Builds) before deploy, and locally before `wrangler dev`.
 [build]
