@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from 'hono/jsx'
-import { SITE, NAV } from '../data/site'
+import { SITE, NAV, GA_ID } from '../data/site'
 import { buildGraph } from '../lib/seo'
 import { Footer } from './Footer'
 import { Logo } from './Logo'
@@ -12,6 +12,8 @@ interface LayoutProps {
   /** Load the full WebGL Earth/constellation backdrop (home only). Content
    *  pages get a lightweight CSS starfield instead — no 1.1MB bundle. */
   scene?: boolean
+  /** Inject Google Analytics (production hostname only — see index.tsx). */
+  analytics?: boolean
 }
 
 export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
@@ -20,6 +22,7 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
   description,
   noindex,
   scene,
+  analytics,
   children,
 }) => {
   const canonical = `${SITE.url}${path === '/' ? '/' : path}`
@@ -49,6 +52,14 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
         <meta name="twitter:site" content={SITE.twitter} />
         <meta name="twitter:image" content={`${SITE.url}/og.png`} />
         <link rel="stylesheet" href="/styles.css" />
+        {/* GA4 — bootstrap is self-hosted at /ga.js so the CSP stays free of
+            'unsafe-inline'. Only rendered on the production hostname. */}
+        {analytics ? (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+            <script defer src="/ga.js" />
+          </>
+        ) : null}
         {/* Inert structured data — exempt from the script-src CSP. */}
         {graph.map((node) => (
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(node) }} />

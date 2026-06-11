@@ -8,7 +8,7 @@ import { Starlink } from './pages/Starlink'
 import { SpacexAi } from './pages/SpacexAi'
 import { Moon } from './pages/Moon'
 import { Mars } from './pages/Mars'
-import { SITE } from './data/site'
+import { SITE, GA_ID } from './data/site'
 import { api } from './routes/api'
 import { refreshStarlinkTle } from './lib/tle'
 import type { Env } from './types'
@@ -40,14 +40,15 @@ app.use('*', async (c, next) => {
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
   c.header('Strict-Transport-Security', 'max-age=31536000')
   c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  // GA origins per Google's official CSP guidance; everything else same-origin.
   c.header(
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self'",
+      "script-src 'self' https://*.googletagmanager.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
-      "connect-src 'self'",
+      "img-src 'self' data: blob: https://*.google-analytics.com https://*.googletagmanager.com",
+      "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
       "worker-src 'self' blob:",
       "font-src 'self' data:",
       "base-uri 'none'",
@@ -120,16 +121,39 @@ const PAGES: PageDef[] = [
   },
 ]
 
+// Server-side gate for emitting the GA tags. NOTE: with custom-domain routes
+// in wrangler.toml, `wrangler dev` simulates the route host, so this is true
+// locally too — the authoritative guard is in /ga.js, where the BROWSER's
+// location.hostname decides. Local visits load the script but report nothing.
+const wantsAnalytics = (c: { req: { url: string } }) =>
+  new URL(c.req.url).hostname === 'ipo2mars.com'
+
 for (const page of PAGES) {
   app.get(page.path, (c) => {
     c.header('Cache-Control', 'public, max-age=300')
     return c.html(
-      <Layout path={page.path} title={page.title} description={page.description} scene={page.scene}>
+      <Layout
+        path={page.path}
+        title={page.title}
+        description={page.description}
+        scene={page.scene}
+        analytics={wantsAnalytics(c)}
+      >
         {page.body()}
       </Layout>,
     )
   })
 }
+
+// GA bootstrap, self-hosted so the CSP needs no 'unsafe-inline'. The ID lives
+// in src/data/site.ts (single source of truth).
+app.get('/ga.js', (c) => {
+  c.header('Content-Type', 'text/javascript; charset=utf-8')
+  c.header('Cache-Control', 'public, max-age=86400')
+  return c.body(
+    `if(location.hostname==='ipo2mars.com'){window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','${GA_ID}');}`,
+  )
+})
 
 app.get('/robots.txt', (c) => {
   c.header('Cache-Control', 'public, max-age=3600')
@@ -162,7 +186,13 @@ app.get('/llms.txt', (c) => {
 
 app.notFound((c) =>
   c.html(
-    <Layout path={new URL(c.req.url).pathname} title="Lost in orbit — ipo2mars" description="Page not found." noindex>
+    <Layout
+      path={new URL(c.req.url).pathname}
+      title="Lost in orbit — ipo2mars"
+      description="Page not found."
+      noindex
+      analytics={wantsAnalytics(c)}
+    >
       <ComingSoon title="Lost in orbit" blurb="That page drifted out of range." />
     </Layout>,
     404,

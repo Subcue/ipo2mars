@@ -1,5 +1,10 @@
 // Single source of site-wide facts. Keep copy here so pages stay declarative.
 
+// GA4 measurement ID — public by design (visible in every visitor's page
+// source), so it lives in code, not in a secret. Injected only on the
+// production hostname; localhost / wrangler dev never fire analytics.
+export const GA_ID = 'G-JXWLC5LC7D'
+
 export const SITE = {
   name: 'ipo2mars',
   url: 'https://ipo2mars.com',
