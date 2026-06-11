@@ -40,15 +40,19 @@ app.use('*', async (c, next) => {
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
   c.header('Strict-Transport-Security', 'max-age=31536000')
   c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-  // GA origins per Google's official CSP guidance; everything else same-origin.
+  // GA origins per Google's official CSP guidance. Cloudflare Web Analytics:
+  // CF auto-injects beacon.min.js at the edge (versioned URL, can't be hashed)
+  // so the loader is allowed by origin and its RUM POST endpoint
+  // (cloudflareinsights.com/cdn-cgi/rum) via connect-src — same approach as
+  // subcue's corp site. Everything else same-origin.
   c.header(
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' https://*.googletagmanager.com",
+      "script-src 'self' https://*.googletagmanager.com https://static.cloudflareinsights.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://*.google-analytics.com https://*.googletagmanager.com",
-      "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
+      "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://cloudflareinsights.com",
       "worker-src 'self' blob:",
       "font-src 'self' data:",
       "base-uri 'none'",
