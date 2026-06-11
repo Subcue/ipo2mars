@@ -43,8 +43,8 @@ export const Mars: FC = () => (
 
     <NextLinks
       links={[
-        { href: '/spacex-ipo', label: '← IPO Mission Control' },
-        { href: '/starlink', label: 'Starlink' },
+        { href: '/moon', label: '← The Moon, first' },
+        { href: '/spacex-ipo', label: 'IPO Mission Control' },
         { href: 'https://github.com/Subcue/ipo2mars', label: 'Contribute the simulator ★' },
       ]}
     />

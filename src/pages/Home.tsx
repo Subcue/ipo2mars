@@ -21,6 +21,12 @@ const SECTIONS = [
     body: 'With xAI now inside SpaceX, the story stretches from rockets to data centers in orbit. We map what is real today and what is still a future scenario.',
   },
   {
+    href: '/moon',
+    eyebrow: 'The proving ground',
+    title: 'The Moon, first',
+    body: 'Artemis II just carried humans around the Moon again — and SpaceX’s Starship HLS is the contracted lander for the first crewed landing since Apollo. Every lunar milestone is a dress rehearsal for Mars.',
+  },
+  {
     href: '/mars',
     eyebrow: 'The destination',
     title: 'A self-sustaining Mars city',

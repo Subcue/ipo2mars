@@ -38,7 +38,7 @@ export const SpacexAi: FC = () => (
     <NextLinks
       links={[
         { href: '/starlink', label: '← Starlink' },
-        { href: '/mars', label: 'On to Mars →' },
+        { href: '/moon', label: 'The Moon, first →' },
         { href: '/spacex-ipo', label: 'IPO Mission Control →' },
       ]}
     />

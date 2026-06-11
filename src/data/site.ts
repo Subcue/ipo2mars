@@ -24,5 +24,6 @@ export const NAV: NavLink[] = [
   { href: '/spacex-ipo', label: 'IPO' },
   { href: '/starlink', label: 'Starlink' },
   { href: '/spacex-ai', label: 'Space × AI' },
+  { href: '/moon', label: 'Moon' },
   { href: '/mars', label: 'Mars' },
 ]

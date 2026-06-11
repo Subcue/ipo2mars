@@ -4,6 +4,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { Earth } from './Earth'
 import { Starlink } from './Starlink'
+import { Moon } from './Moon'
 import { Atmosphere } from './Atmosphere'
 import { STILL } from './debug'
 
@@ -27,6 +28,7 @@ export function Experience() {
           <Earth radius={1} />
           <Starlink count={3000} radius={1} />
         </group>
+        <Moon orbitRadius={3.0} radius={0.18} />
       </Suspense>
 
       {/* Soft atmospheric halo — camera-facing, fades into space on its own. */}

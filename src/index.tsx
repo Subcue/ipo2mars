@@ -6,6 +6,7 @@ import { Home } from './pages/Home'
 import { SpacexIpo } from './pages/SpacexIpo'
 import { Starlink } from './pages/Starlink'
 import { SpacexAi } from './pages/SpacexAi'
+import { Moon } from './pages/Moon'
 import { Mars } from './pages/Mars'
 import { SITE } from './data/site'
 import { api } from './routes/api'
@@ -91,6 +92,13 @@ const PAGES: PageDef[] = [
     description:
       'How SpaceX’s xAI merger and the idea of orbital data centers fit into the story — what is real today, and what is still a future scenario.',
     body: () => <SpacexAi />,
+  },
+  {
+    path: '/moon',
+    title: 'Moon program — Starship HLS and Artemis · ipo2mars',
+    description:
+      'Where SpaceX fits in the return to the Moon: the Starship HLS lander, the Artemis III docking demo, and a first crewed landing targeted for Artemis IV — the proving ground for Mars.',
+    body: () => <Moon />,
   },
   {
     path: '/mars',
