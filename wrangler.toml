@@ -1,0 +1,35 @@
+# ipo2mars — unofficial open-source SpaceX 3D narrative site.
+#
+# Mirrors the subcue/global/* model: wrangler bundles the Hono worker entry
+# (src/index.tsx, hono/jsx SSR); the React + R3F client island is bundled
+# separately by esbuild into ./public/assets/scene.js and served as a static
+# asset. Deploy ONLY via the Cloudflare Workers Builds GitHub integration
+# (commit + push) — there is intentionally no `deploy` script. `wrangler dev`
+# for local only.
+
+name = "ipo2mars"
+main = "src/index.tsx"
+compatibility_date = "2026-06-01"
+workers_dev = true
+
+# Runs in CI (Workers Builds) before deploy, and locally before `wrangler dev`.
+[build]
+command = "npm run build"
+
+[assets]
+directory = "./public"
+html_handling = "none"
+
+[observability]
+enabled = true
+
+# Warm the Starlink TLE cache every 4h (inside the 6h KV TTL) so visitors never
+# trigger a cold CelesTrak fetch. Takes effect on GitHub auto-deploy.
+[triggers]
+crons = ["0 */4 * * *"]
+
+# KV cache for the CelesTrak Starlink TLE feed (worker proxies + caches it so
+# the browser fetches same-origin, and CelesTrak isn't hammered).
+[[kv_namespaces]]
+binding = "KV_CACHE"
+id = "4d00fe83e89c4f36b42d01a40f23f844"
