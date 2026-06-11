@@ -34,19 +34,12 @@ export const Home: FC = () => (
           An open-source 3D atlas of SpaceX: live Starlink orbits, a record IPO,
           the Moon, and a city on Mars.
         </p>
-        <div class="animate-fade-up mt-10 flex flex-wrap items-center justify-center gap-3">
+        <div class="animate-fade-up mt-10">
           <a
             href="/spacex-ipo"
             class="rounded-full bg-white px-7 py-3 text-sm font-semibold text-space transition-transform hover:-translate-y-[1px]"
           >
             Enter the atlas
-          </a>
-          <a
-            href={SITE.repo}
-            rel="noopener noreferrer"
-            class="rounded-full border border-white/15 px-7 py-3 text-sm font-medium text-white/85 transition-colors hover:border-white/40 hover:text-white"
-          >
-            Star on GitHub
           </a>
         </div>
       </div>
