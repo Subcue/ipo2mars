@@ -1,13 +1,15 @@
 import type { FC } from 'hono/jsx'
 import { SITE, DISCLAIMER, NAV } from '../data/site'
+import { Logo } from './Logo'
 
 export const Footer: FC = () => (
   <footer class="relative z-10 mt-32 border-t border-haze/10 bg-space/80 backdrop-blur">
     <div class="mx-auto w-full max-w-site px-6 py-14">
       <div class="flex flex-col gap-10 md:flex-row md:justify-between">
         <div class="max-w-sm">
-          <a href="/" class="font-mono text-sm uppercase tracking-[0.3em] text-white">
-            ipo2mars
+          <a href="/" class="flex items-center gap-2.5 text-white">
+            <Logo class="h-5 w-auto" />
+            <span class="font-mono text-sm uppercase tracking-[0.3em]">ipo2mars</span>
           </a>
           <p class="mt-3 text-sm leading-relaxed text-white/45">{SITE.tagline}</p>
           <p class="mt-4 text-xs leading-relaxed text-white/35">{DISCLAIMER}</p>

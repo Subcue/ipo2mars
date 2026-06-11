@@ -2,6 +2,7 @@ import type { FC, PropsWithChildren } from 'hono/jsx'
 import { SITE, NAV } from '../data/site'
 import { buildGraph } from '../lib/seo'
 import { Footer } from './Footer'
+import { Logo } from './Logo'
 
 interface LayoutProps {
   path: string
@@ -64,8 +65,9 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
 
         <header class="fixed inset-x-0 top-0 z-30">
           <nav class="mx-auto flex w-full max-w-site items-center justify-between px-6 py-5">
-            <a href="/" class="font-mono text-sm font-semibold uppercase tracking-[0.32em] text-white">
-              ipo2mars
+            <a href="/" class="flex items-center gap-2.5 text-white">
+              <Logo class="h-[22px] w-auto" />
+              <span class="font-mono text-sm font-semibold uppercase tracking-[0.3em]">ipo2mars</span>
             </a>
             <div class="hidden items-center gap-7 text-sm text-white/65 sm:flex">
               {NAV.map((link) => (
