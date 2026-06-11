@@ -33,7 +33,7 @@ export function buildGraph(page: PageSchema): object[] {
       keywords: 'SpaceX IPO, SPCX, Starlink, Mars colonization, open source 3D',
       license: 'https://opensource.org/licenses/MIT',
       isAccessibleForFree: true,
-      creditText: 'ipo2mars — open source',
+      creditText: 'ipo2mars, open source',
     },
   ]
 }

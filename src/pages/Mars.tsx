@@ -5,7 +5,7 @@ export const Mars: FC = () => (
   <Article
     eyebrow="The destination"
     title="From IPO to a city on Mars"
-    lede="Reusable rockets pay for Starlink. Starlink pays for Starship. Starship is the vehicle for the actual goal — and the IPO is just the launchpad."
+    lede="Reusable rockets pay for Starlink. Starlink pays for Starship. Starship is the vehicle for the actual goal, and the IPO is just the launchpad."
   >
     <Block heading="The transfer window">
       <p>
@@ -17,7 +17,7 @@ export const Mars: FC = () => (
 
     <Block heading="The hundred-year plan, in public">
       <p>
-        The stated ambition is a self-sustaining city — on the order of a million people — able to
+        The stated ambition is a self-sustaining city on the order of a million people, able to
         survive even if the ships from Earth stop coming. That is a multi-decade, aspirational goal,
         not a dated milestone, and we treat it as such: a direction, visualized.
       </p>
@@ -31,8 +31,8 @@ export const Mars: FC = () => (
     <Block heading="Coming soon: the settlement simulator">
       <p>
         A planned interactive: set Starship flights per window, cargo per flight, power source, and
-        population growth, and watch the model estimate when a Mars city becomes self-sustaining. It's
-        the next thing we're building in public — contributions welcome.
+        population growth, then watch the model estimate when a Mars city becomes self-sustaining.
+        It is the next thing we are building in public, and contributions are welcome.
       </p>
     </Block>
 
@@ -45,7 +45,7 @@ export const Mars: FC = () => (
       links={[
         { href: '/moon', label: '← The Moon, first' },
         { href: '/spacex-ipo', label: 'IPO Mission Control' },
-        { href: 'https://github.com/Subcue/ipo2mars', label: 'Contribute the simulator ★' },
+        { href: 'https://github.com/Subcue/ipo2mars', label: 'Contribute the simulator' },
       ]}
     />
   </Article>

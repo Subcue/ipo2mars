@@ -15,6 +15,7 @@ const options = {
   entryPoints: {
     scene: 'src/client/main.tsx',
     countdown: 'src/client/countdown.ts',
+    reveal: 'src/client/reveal.ts',
   },
   bundle: true,
   format: 'esm',

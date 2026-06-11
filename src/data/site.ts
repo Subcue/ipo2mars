@@ -10,7 +10,7 @@ export const SITE = {
   url: 'https://ipo2mars.com',
   tagline: "IPO is not the destination. It's the launchpad.",
   description:
-    'An unofficial open-source 3D visualization of SpaceX’s arc — from reusable rockets and the live Starlink constellation to its record-breaking IPO, orbital AI, and a self-sustaining Mars city.',
+    'An unofficial open-source 3D visualization of SpaceX: the live Starlink constellation, a record-breaking IPO, orbital AI, the Moon, and a self-sustaining Mars city.',
   repo: 'https://github.com/Subcue/ipo2mars',
   twitter: '@subcueai',
 }

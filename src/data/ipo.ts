@@ -79,11 +79,11 @@ export const VALUATION_BARS: Bar[] = [
 export const OVERSUBSCRIPTION = {
   demand: 250, // $B+, reported
   raise: 75, // $B sought
-  multiple: '≈ 3.5–4×',
+  multiple: '3.5-4x',
   source: 'CNBC',
   url: CNBC_LIVE,
   lastVerified: '2026-06-11',
 }
 
 export const IPO_CONTEXT =
-  'The story underneath the numbers: more orbital launches per year than the rest of the world combined, 9M+ Starlink subscribers, and — after a 2026 merger — xAI inside the same company.'
+  'The story underneath the numbers: more orbital launches per year than the rest of the world combined, 9M+ Starlink subscribers, and, after the 2026 merger, xAI inside the same company.'

@@ -72,7 +72,7 @@ interface PageDef {
 
 const ComingSoon = ({ title, blurb }: { title: string; blurb: string }) => (
   <section class="flex min-h-[100svh] flex-col items-center justify-center px-6 text-center">
-    <h1 class="max-w-3xl text-4xl font-semibold tracking-tightest text-glow sm:text-6xl">{title}</h1>
+    <h1 class="max-w-3xl font-display text-4xl font-semibold tracking-tightest text-glow sm:text-6xl">{title}</h1>
     <p class="mt-6 max-w-xl leading-relaxed text-white/60">{blurb}</p>
     <a href="/" class="mt-10 text-sm font-medium text-accent hover:underline">
       ← Back to the launchpad
@@ -83,42 +83,42 @@ const ComingSoon = ({ title, blurb }: { title: string; blurb: string }) => (
 const PAGES: PageDef[] = [
   {
     path: '/',
-    title: 'ipo2mars — SpaceX from IPO to Mars, in 3D',
+    title: 'ipo2mars: SpaceX from IPO to Mars, in 3D',
     description: SITE.description,
     body: () => <Home />,
     scene: true,
   },
   {
     path: '/spacex-ipo',
-    title: 'SpaceX IPO (SPCX) — a $1.77T listing, visualized · ipo2mars',
+    title: 'SpaceX IPO (SPCX): a $1.77T listing, visualized · ipo2mars',
     description:
       'An unofficial visualization of the SpaceX IPO: SPCX on the Nasdaq, a $1.77 trillion valuation, $75B raised, and the largest public offering in history. Not investment advice.',
     body: () => <SpacexIpo />,
   },
   {
     path: '/starlink',
-    title: 'Starlink constellation — live 3D map · ipo2mars',
+    title: 'Starlink constellation: live 3D map · ipo2mars',
     description:
-      'A real-time 3D Starlink constellation rendered from public CelesTrak orbital data — thousands of satellites serving nine million subscribers.',
+      'A real-time 3D Starlink constellation rendered from public CelesTrak orbital data: thousands of satellites serving nine million subscribers.',
     body: () => <Starlink />,
   },
   {
     path: '/spacex-ai',
-    title: 'Space × AI — SpaceX, xAI, and compute in orbit · ipo2mars',
+    title: 'Space × AI: SpaceX, xAI, and compute in orbit · ipo2mars',
     description:
-      'How SpaceX’s xAI merger and the idea of orbital data centers fit into the story — what is real today, and what is still a future scenario.',
+      'How SpaceX’s xAI merger and the idea of orbital data centers fit into the story: what is real today, and what is still a future scenario.',
     body: () => <SpacexAi />,
   },
   {
     path: '/moon',
-    title: 'Moon program — Starship HLS and Artemis · ipo2mars',
+    title: 'Moon program: Starship HLS and Artemis · ipo2mars',
     description:
-      'Where SpaceX fits in the return to the Moon: the Starship HLS lander, the Artemis III docking demo, and a first crewed landing targeted for Artemis IV — the proving ground for Mars.',
+      'Where SpaceX fits in the return to the Moon: the Starship HLS lander, the Artemis III docking demo, and a first crewed landing targeted for Artemis IV: the proving ground for Mars.',
     body: () => <Moon />,
   },
   {
     path: '/mars',
-    title: 'Mars settlement — Starship to a self-sustaining city · ipo2mars',
+    title: 'Mars settlement: Starship to a self-sustaining city · ipo2mars',
     description:
       'Earth-to-Mars transfer windows, Starship cadence, and the arc toward a self-sustaining city of a million people. The IPO is just the launchpad.',
     body: () => <Mars />,
@@ -192,7 +192,7 @@ app.notFound((c) =>
   c.html(
     <Layout
       path={new URL(c.req.url).pathname}
-      title="Lost in orbit — ipo2mars"
+      title="Lost in orbit: ipo2mars"
       description="Page not found."
       noindex
       analytics={wantsAnalytics(c)}

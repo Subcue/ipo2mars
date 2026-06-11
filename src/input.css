@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Self-hosted variable fonts (latin subsets, ~80KB total).
+   Display: Space Grotesk · Body: Geist · Data: Geist Mono */
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('/fonts/space-grotesk.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/geist.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/geist-mono.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -10,15 +34,16 @@
   body {
     overflow-x: hidden;
   }
+  ::selection {
+    background: rgba(27, 156, 255, 0.35);
+  }
 }
 
 @layer utilities {
-  /* Subtle frosted panel used by the narrative sections layered over the 3D. */
+  /* Quiet container: hairline + faint tint. No heavy blur, no glass slop. */
   .panel {
-    background: linear-gradient(180deg, rgba(8, 11, 20, 0.72), rgba(8, 11, 20, 0.55));
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(125, 184, 255, 0.14);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
   .text-glow {
     text-shadow: 0 2px 30px rgba(5, 6, 10, 0.85), 0 0 42px rgba(27, 156, 255, 0.25);
@@ -27,6 +52,12 @@
      bright Earth/constellation behind it, without hiding the globe at the edges. */
   .hero-scrim {
     background: radial-gradient(ellipse 66% 56% at 50% 44%, rgba(5, 6, 10, 0.74), rgba(5, 6, 10, 0) 72%);
+  }
+  /* Below the 3D hero the page settles onto solid ground: a tall fade from
+     transparent into the page color, then solid. Content reads cleanly without
+     glass cards; the canvas keeps living behind the hero only. */
+  .ground {
+    background: linear-gradient(180deg, rgba(5, 6, 10, 0) 0%, rgba(5, 6, 10, 0.9) 18%, #05060a 32%);
   }
   /* Lightweight CSS star field for content pages (no WebGL bundle). Two faint
      nebula glows + a scatter of stars; each radial-gradient paints one dot. */
@@ -53,5 +84,30 @@
       radial-gradient(1.3px 1.3px at 96% 70%, rgba(255, 255, 255, 0.75), transparent),
       radial-gradient(1px 1px at 20% 40%, rgba(255, 255, 255, 0.55), transparent),
       radial-gradient(1.2px 1.2px at 5% 14%, rgba(255, 255, 255, 0.7), transparent);
+  }
+}
+
+/* Scroll reveal (vanilla IntersectionObserver in /assets/reveal.js).
+   Progressive enhancement: nothing hides until the script marks the root,
+   so no-JS visitors and crawlers always see full content. */
+.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-ready [data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  html {
+    scroll-behavior: auto;
   }
 }

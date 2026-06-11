@@ -28,7 +28,14 @@ function start() {
         const node = el.querySelector(`[data-unit="${unit}"]`)
         if (node) node.textContent = unit === 'days' ? String(val) : pad(val)
       }
-      if (target - now <= 0) el.setAttribute('data-live', 'true')
+      // Past the target: flip the label to the live state (e.g. "SPCX is
+      // trading on the Nasdaq") instead of sitting on a dead zero clock.
+      if (target - now <= 0 && el.getAttribute('data-live') !== 'true') {
+        el.setAttribute('data-live', 'true')
+        const label = el.querySelector('[data-count-label]')
+        const liveText = el.getAttribute('data-live-label')
+        if (label && liveText) label.textContent = liveText
+      }
     }
   }
 
@@ -41,3 +48,6 @@ if (document.readyState === 'loading') {
 } else {
   start()
 }
+
+// Module marker so each client entry has its own scope under tsc.
+export {}

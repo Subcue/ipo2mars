@@ -1,38 +1,31 @@
 import type { FC } from 'hono/jsx'
-import { Article, Block, Note, NextLinks } from '../components/Article'
+import { Article, Block, Note, NextLinks, StatStrip } from '../components/Article'
 
 const STATS = [
   { value: '9M+', label: 'subscribers' },
   { value: '~550 km', label: 'orbital altitude' },
   { value: '53°', label: 'primary inclination' },
-  { value: 'live', label: 'from CelesTrak data' },
+  { value: 'Live', label: 'from CelesTrak data' },
 ]
 
 export const Starlink: FC = () => (
   <Article
     eyebrow="Low Earth orbit"
     title="The Starlink mesh"
-    lede="Thousands of satellites in low Earth orbit, knitting the planet into a single network — and the revenue engine underneath the IPO story."
+    lede="Thousands of satellites in low Earth orbit, knitting the planet into a single network. It is also the revenue engine underneath the IPO story."
   >
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {STATS.map((s) => (
-        <div class="panel rounded-2xl p-5">
-          <p class="text-2xl font-semibold tracking-tight">{s.value}</p>
-          <p class="mt-1 text-xs text-white/50">{s.label}</p>
-        </div>
-      ))}
-    </div>
+    <StatStrip stats={STATS} />
 
     <Block heading="What you're seeing">
       <p>
         The globe on the home page isn't decorative. Each point is a real Starlink satellite, placed
         from public two-line element (TLE) orbital data published by CelesTrak and propagated in your
-        browser with an SGP4 model — the same math used to track objects in orbit.
+        browser with an SGP4 model, the same math used to track objects in orbit.
       </p>
       <p>
         Positions update continuously as the satellites move at roughly 7.5 km/s, completing an orbit
-        about every 95 minutes. The constellation's tilted shells — most prominently around 53° of
-        inclination — are why coverage concentrates between the mid-latitudes.
+        about every 95 minutes. The constellation's tilted shells, most prominently around 53° of
+        inclination, are why coverage concentrates between the mid-latitudes.
       </p>
     </Block>
 
@@ -40,7 +33,7 @@ export const Starlink: FC = () => (
       <p>
         Starlink turned a hardware company into a recurring-revenue one. With more than nine million
         subscribers and an expanding direct-to-cell effort, it is the part of the business investors
-        can model — and a large part of why demand for the listing ran multiples past the raise.
+        can model, and a large part of why demand for the listing ran multiples past the raise.
       </p>
     </Block>
 
@@ -54,7 +47,7 @@ export const Starlink: FC = () => (
       links={[
         { href: '/spacex-ipo', label: '← IPO Mission Control' },
         { href: '/spacex-ai', label: 'Space × AI →' },
-        { href: '/mars', label: 'On to Mars →' },
+        { href: '/moon', label: 'The Moon →' },
       ]}
     />
   </Article>

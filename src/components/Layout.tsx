@@ -3,6 +3,7 @@ import { SITE, NAV, GA_ID } from '../data/site'
 import { buildGraph } from '../lib/seo'
 import { Footer } from './Footer'
 import { Logo } from './Logo'
+import { GitHubMark } from './GitHubMark'
 
 interface LayoutProps {
   path: string
@@ -39,6 +40,9 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
         <link rel="canonical" href={canonical} />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <meta name="theme-color" content="#05060a" />
+        <link rel="preload" href="/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin="" />
+        <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin="" />
+        <link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin="" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content={SITE.name} />
         <meta property="og:title" content={title} />
@@ -47,7 +51,7 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
         <meta property="og:image" content={`${SITE.url}/og.png`} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="ipo2mars — a 3D map of SpaceX's future" />
+        <meta property="og:image:alt" content="ipo2mars: a 3D map of SpaceX's future" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content={SITE.twitter} />
         <meta name="twitter:image" content={`${SITE.url}/og.png`} />
@@ -74,13 +78,13 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
           <div class="starfield pointer-events-none fixed inset-0 z-0" aria-hidden="true" />
         )}
 
-        <header class="fixed inset-x-0 top-0 z-30">
-          <nav class="mx-auto flex w-full max-w-site items-center justify-between px-6 py-5">
+        <header class="fixed inset-x-0 top-0 z-30 border-b border-white/[0.06] bg-space/60 backdrop-blur-md">
+          <nav class="mx-auto flex h-16 w-full max-w-site items-center justify-between px-6">
             <a href="/" class="flex items-center gap-2.5 text-white">
-              <Logo class="h-[22px] w-auto" />
-              <span class="font-mono text-sm font-semibold uppercase tracking-[0.3em]">ipo2mars</span>
+              <Logo class="h-5 w-auto" />
+              <span class="font-display text-[15px] font-semibold uppercase tracking-[0.26em]">ipo2mars</span>
             </a>
-            <div class="hidden items-center gap-7 text-sm text-white/65 sm:flex">
+            <div class="hidden items-center gap-8 text-[13.5px] font-medium text-white/60 sm:flex">
               {NAV.map((link) => (
                 <a
                   href={link.href}
@@ -95,9 +99,10 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
             <a
               href={SITE.repo}
               rel="noopener noreferrer"
-              class="rounded-full border border-haze/25 px-4 py-1.5 text-xs font-medium text-white/80 transition-colors hover:border-haze/50 hover:text-white"
+              class="flex items-center gap-2 rounded-full border border-white/15 px-4 py-1.5 text-xs font-medium text-white/85 transition-colors hover:border-white/40 hover:text-white"
             >
-              ★ GitHub
+              <GitHubMark class="h-3.5 w-3.5" />
+              GitHub
             </a>
           </nav>
         </header>
@@ -108,6 +113,7 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
 
         {scene ? <script type="module" src="/assets/scene.js" /> : null}
         <script type="module" src="/assets/countdown.js" />
+        <script type="module" src="/assets/reveal.js" />
       </body>
     </html>
   )
