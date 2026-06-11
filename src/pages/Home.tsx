@@ -39,7 +39,10 @@ export const Home: FC = () => (
     {/* Hero — text overlaid on the fixed 3D Earth/constellation backdrop. */}
     <section class="relative flex min-h-[100svh] flex-col items-center justify-center px-6 text-center">
       <div class="hero-scrim pointer-events-none absolute inset-0" aria-hidden="true" />
-      <div class="relative z-10 flex flex-col items-center">
+      {/* w-full anchors the column to the viewport: without it this box is
+          fit-content and Chrome's text-balance h1 can size it wider than the
+          screen on phones (clipping the headline at both edges). */}
+      <div class="relative z-10 flex w-full flex-col items-center">
         <p class="animate-fade-up font-mono text-[11px] uppercase tracking-[0.4em] text-haze/70">
           Unofficial · Open Source · Not investment advice
         </p>

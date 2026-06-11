@@ -1,6 +1,6 @@
 /** @jsxImportSource react */
-import { Suspense } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Suspense, useEffect } from 'react'
+import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { Earth } from './Earth'
 import { Starlink } from './Starlink'
@@ -12,6 +12,22 @@ import { STILL } from './debug'
 // orbital planes lean together.
 const AXIAL_TILT = 0.41
 
+const BASE_DISTANCE = 4.0
+
+// three.js fov is VERTICAL, so portrait screens crop the globe horizontally and
+// it overflows phone viewports. Pull the camera back as the aspect narrows so
+// the Earth stays comfortably framed on mobile; desktop (aspect > 1.15) is
+// untouched. OrbitControls picks the new radius up and keeps auto-rotating.
+function ResponsiveFraming() {
+  const camera = useThree((s) => s.camera)
+  const size = useThree((s) => s.size)
+  useEffect(() => {
+    const aspect = size.width / size.height
+    camera.position.setLength(BASE_DISTANCE * Math.max(1, 1.15 / aspect))
+  }, [camera, size])
+  return null
+}
+
 export function Experience() {
   return (
     <Canvas
@@ -20,6 +36,7 @@ export function Experience() {
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
     >
       <color attach="background" args={['#05060a']} />
+      <ResponsiveFraming />
       <ambientLight intensity={0.42} />
       <directionalLight position={[5, 2.5, 3]} intensity={1.8} color="#fff6e8" />
 
