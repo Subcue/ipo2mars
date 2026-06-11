@@ -49,7 +49,10 @@ export function Atmosphere({ planetRadius = 1 }: { planetRadius?: number }) {
         blending: AdditiveBlending,
         side: BackSide,
         depthWrite: false,
-        depthTest: false,
+        // Depth-tested so anything passing in FRONT of the halo (the Moon)
+        // occludes it instead of getting a ghostly additive wash painted over
+        // it. The shell sits at 1.6r, far from every surface, so no z-fights.
+        depthTest: true,
       }),
     [planetRadius],
   )

@@ -45,7 +45,7 @@ export function Experience() {
           <Earth radius={1} />
           <Starlink count={3000} radius={1} />
         </group>
-        <Moon orbitRadius={3.0} radius={0.18} />
+        <Moon orbitRadius={9} radius={0.5} />
       </Suspense>
 
       {/* Soft atmospheric halo — camera-facing, fades into space on its own. */}
