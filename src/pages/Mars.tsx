@@ -1,5 +1,6 @@
 import type { FC } from 'hono/jsx'
 import { Article, Block, Note, NextLinks } from '../components/Article'
+import { MarsSimulator } from '../components/MarsSimulator'
 
 export const Mars: FC = () => (
   <Article
@@ -28,13 +29,7 @@ export const Mars: FC = () => (
       </p>
     </Block>
 
-    <Block heading="Coming soon: the settlement simulator">
-      <p>
-        A planned interactive: set Starship flights per window, cargo per flight, power source, and
-        population growth, then watch the model estimate when a Mars city becomes self-sustaining.
-        It is the next thing we are building in public, and contributions are welcome.
-      </p>
-    </Block>
+    <MarsSimulator />
 
     <Note>
       Forward-looking and aspirational statements describe publicly stated goals, not commitments or

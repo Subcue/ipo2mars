@@ -19,7 +19,7 @@ An open-source, interactive 3D atlas of SpaceX — from reusable rockets and the
 - 🛰️ **The Starlink mesh** — what the constellation is, and why it's the revenue engine under the IPO story.
 - 🤖 **Space × AI** — what the SpaceX × xAI merger really means today, and what's still speculative (clearly labeled).
 - 🌕 **The Moon, first** — where Starship HLS fits in the Artemis return: the docking demo, the first crewed landing targeted for Artemis IV, and why every lunar milestone is a dress rehearsal for Mars. (The hero scene has a slowly orbiting Moon, too.)
-- 🔴 **Mars** — transfer windows, Starship cadence, and the arc toward a city of a million people. (Interactive settlement simulator coming next — [contributions welcome](#contributing).)
+- 🔴 **Mars** — transfer windows, Starship cadence, and the arc toward a city of a million people. Includes the interactive settlement simulator: set the fleet, see when a city of a million becomes self-sustaining.
 
 ## How it works
 
@@ -79,7 +79,7 @@ public/textures/     NASA-derived Earth maps (public domain)
 
 This is built in public and contributions are very welcome — especially:
 
-- 🔴 **The Mars settlement simulator** (sliders → "self-sustaining by year XXXX").
+- 🔴 **Extending the settlement simulator** (attrition, cargo splits, Monte Carlo on `src/lib/marsModel.ts`).
 - 🌐 **Internationalization** of the SSR pages.
 - ⚡ **Perf** — move SGP4 propagation into a Web Worker; trim the R3F bundle.
 - 🛰️ **Starlink coverage/latency modes** on a dedicated 3D view.

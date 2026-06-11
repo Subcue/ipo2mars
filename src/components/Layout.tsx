@@ -15,6 +15,8 @@ interface LayoutProps {
   scene?: boolean
   /** Inject Google Analytics (production hostname only — see index.tsx). */
   analytics?: boolean
+  /** Load the Mars settlement simulator island (the /mars page). */
+  sim?: boolean
 }
 
 export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
@@ -24,6 +26,7 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
   noindex,
   scene,
   analytics,
+  sim,
   children,
 }) => {
   const canonical = `${SITE.url}${path === '/' ? '/' : path}`
@@ -112,6 +115,7 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
         <Footer />
 
         {scene ? <script type="module" src="/assets/scene.js" /> : null}
+        {sim ? <script type="module" src="/assets/simulator.js" /> : null}
         <script type="module" src="/assets/countdown.js" />
         <script type="module" src="/assets/reveal.js" />
       </body>

@@ -33,7 +33,7 @@ npm run build        # ensure the production build is clean
 
 ## Good first issues
 
-- **Mars settlement simulator** — an interactive on `/mars`: sliders for Starship flights/window, cargo, power source, population growth → an estimated "self-sustaining by year XXXX". A natural standalone island like the countdown.
+- **Extend the settlement simulator** on `/mars`: attrition, cargo-vs-crew splits, ISRU milestones, or a Monte Carlo mode on top of the shared model in `src/lib/marsModel.ts`.
 - **i18n** — the SSR pages are English-only; a locale layer (à la a `?lang=` or path prefix) would open up the content.
 - **Perf** — move SGP4 propagation into a Web Worker so the constellation never janks the main thread; code-split the R3F bundle.
 - **Starlink modes** — a dedicated `/starlink` 3D view with coverage / latency / direct-to-cell overlays.

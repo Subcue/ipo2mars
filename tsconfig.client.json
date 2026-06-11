@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/client"]
+  "include": ["src/client", "src/lib/marsModel.ts"]
 }

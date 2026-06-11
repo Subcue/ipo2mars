@@ -68,6 +68,7 @@ interface PageDef {
   description: string
   body: () => Child
   scene?: boolean
+  sim?: boolean
 }
 
 const ComingSoon = ({ title, blurb }: { title: string; blurb: string }) => (
@@ -118,10 +119,11 @@ const PAGES: PageDef[] = [
   },
   {
     path: '/mars',
-    title: 'Mars settlement: Starship to a self-sustaining city · ipo2mars',
+    title: 'Mars settlement simulator: Starship to a self-sustaining city · ipo2mars',
     description:
-      'Earth-to-Mars transfer windows, Starship cadence, and the arc toward a self-sustaining city of a million people. The IPO is just the launchpad.',
+      'An interactive Mars settlement simulator: set Starship fleet size, growth, and settlers per ship, and see when a city of a million becomes self-sustaining. The IPO is just the launchpad.',
     body: () => <Mars />,
+    sim: true,
   },
 ]
 
@@ -141,6 +143,7 @@ for (const page of PAGES) {
         title={page.title}
         description={page.description}
         scene={page.scene}
+        sim={page.sim}
         analytics={wantsAnalytics(c)}
       >
         {page.body()}
