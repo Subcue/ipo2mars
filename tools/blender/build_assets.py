@@ -15,8 +15,11 @@
 
 import math
 import os
+import random
 
 import bpy
+
+random.seed(7)  # deterministic textures, reproducible GLBs
 
 OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'public', 'models')
 
@@ -69,6 +72,65 @@ def tube(name, r1, r2, depth, z, vertices=48, mat=None):
     return obj
 
 
+def brushed_roughness_image(size=256):
+    """Row-streaked noise: reads as rolled/brushed stainless under reflections.
+
+    Created fresh per scene: reset_scene() wipes bpy.data, so caching an
+    Image across builds would leave a dead reference.
+    """
+    existing = bpy.data.images.get('steel-roughness')
+    if existing is not None:
+        return existing
+    img = bpy.data.images.new('steel-roughness', size, size, alpha=False)
+    px = [0.0] * (size * size * 4)
+    for row in range(size):
+        base = 0.24 + random.random() * 0.12
+        for x in range(size):
+            v = max(0.08, min(0.6, base + (random.random() - 0.5) * 0.05))
+            i = (row * size + x) * 4
+            px[i] = px[i + 1] = px[i + 2] = v
+            px[i + 3] = 1.0
+    img.pixels = px
+    img.pack()
+    return img
+
+
+def steel_pbr(name='steel', color=(0.82, 0.84, 0.88)):
+    """Stainless with a baked brushed-roughness map (full PBR in glTF)."""
+    mat = material(name, color, metallic=1.0, roughness=0.5)
+    nt = mat.node_tree
+    bsdf = nt.nodes['Principled BSDF']
+    tex = nt.nodes.new('ShaderNodeTexImage')
+    tex.image = brushed_roughness_image()
+    tex.image.colorspace_settings.name = 'Non-Color'
+    nt.links.new(tex.outputs['Color'], bsdf.inputs['Roughness'])
+    return mat
+
+
+def split_windward(obj, mat_lee, mat_tiles):
+    """Two material slots on one mesh: faces on the -Y half become tiles.
+
+    This is how the real TPS reads: the black half IS the hull surface,
+    flush from nose tip to skirt, no overlaid shell.
+    """
+    obj.data.materials.clear()
+    obj.data.materials.append(mat_lee)
+    obj.data.materials.append(mat_tiles)
+    for poly in obj.data.polygons:
+        if poly.center.y < -1e-4:
+            poly.material_index = 1
+
+
+def uv_project(obj):
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66))
+    bpy.ops.object.mode_set(mode='OBJECT')
+    obj.select_set(False)
+
+
 def export_glb(name):
     os.makedirs(OUT_DIR, exist_ok=True)
     path = os.path.join(OUT_DIR, f'{name}.glb')
@@ -109,13 +171,14 @@ def prism(name, outline, y_half, mat):
 
 def build_starship():
     """Stylized Starship along +Z (unit height), proportioned after the classic
-    render: blunt ogive nose, delta forward flaps, large trapezoid aft flaps
-    reaching the engine skirt, weld rings, 3+4 engine cluster."""
+    render. The thermal-protection half is NOT an overlaid shell: every hull
+    part carries two material slots split at the y=0 plane, so matte-black
+    tiles run flush from the nose tip to the skirt and the lee half is
+    brushed stainless (PBR roughness map baked into the GLB)."""
     reset_scene()
 
-    steel = material('steel', (0.78, 0.80, 0.84), metallic=0.95, roughness=0.32)
-    weld = material('weld', (0.55, 0.57, 0.62), metallic=0.9, roughness=0.5)
-    tiles = material('tiles', (0.08, 0.09, 0.11), metallic=0.2, roughness=0.75)
+    steel = steel_pbr('steel')
+    tiles = material('tiles', (0.018, 0.018, 0.022), metallic=0.0, roughness=0.88)
     dark = material('engine-dark', (0.05, 0.05, 0.06), metallic=0.6, roughness=0.5)
 
     # Real-ish proportions: 9m dia / 50m tall -> R = 0.09 of height.
@@ -124,8 +187,10 @@ def build_starship():
     nose_h = 0.30
     skirt_h = 0.04
 
-    tube('skirt', R * 1.015, R, skirt_h, skirt_h / 2, mat=steel)
-    body = tube('body', R, R, body_h, skirt_h + body_h / 2, mat=steel)
+    skirt = tube('skirt', R * 1.015, R, skirt_h, skirt_h / 2)
+    split_windward(skirt, steel, tiles)
+    body = tube('body', R, R, body_h, skirt_h + body_h / 2)
+    split_windward(body, steel, tiles)
     smooth(body)
 
     # Blunt ogive nose: spin the profile to 90% then cap with a sphere tip.
@@ -149,36 +214,27 @@ def build_starship():
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.mesh.spin(steps=48, angle=2 * math.pi, center=(0, 0, 0), axis=(0, 0, 1))
     bpy.ops.object.mode_set(mode='OBJECT')
-    assign(obj, steel)
-    smooth(obj)
     obj.select_set(False)
+    uv_project(obj)  # spin meshes have no UVs; the roughness map needs them
+    split_windward(obj, steel, tiles)
+    smooth(obj)
     bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=tip_r * 1.02,
                                          location=(0, 0, tip_z))
     cap = bpy.context.active_object
     cap.name = 'nose-tip'
     cap.scale = (1, 1, 0.85)
-    assign(cap, steel)
+    split_windward(cap, steel, tiles)
     smooth(cap)
 
-    # Weld rings: subtle ring lines segmenting the barrel (like the render).
+    # Weld rings on the steel half only reach the eye; the tile half of each
+    # ring goes black and disappears against the TPS.
     for i in range(1, 8):
         z = skirt_h + body_h * i / 8
-        bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=R * 1.003, depth=0.0035, location=(0, 0, z))
+        bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=R * 1.0025, depth=0.0035, location=(0, 0, z))
         ring = bpy.context.active_object
         ring.name = f'weld-{i}'
-        assign(ring, weld)
-
-    # Windward thermal-tile band: thin half-shell on the -Y side.
-    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=R * 1.012, depth=body_h + nose_h * 0.5,
-                                        location=(0, 0, skirt_h + (body_h + nose_h * 0.5) / 2))
-    shell = bpy.context.active_object
-    shell.name = 'tile-band'
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.mesh.bisect(plane_co=(0, 0, 0), plane_no=(0, 1, 0), clear_outer=True, clear_inner=False)
-    bpy.ops.object.mode_set(mode='OBJECT')
-    assign(shell, tiles)
-    smooth(shell)
+        ring_steel = material(f'weld-steel-{i}', (0.55, 0.57, 0.62), metallic=0.9, roughness=0.5)
+        split_windward(ring, ring_steel, tiles)
 
     # Flaps: thin tiled plates on the +-X sides (one plane, like the render).
     # Aft pair: big trapezoids whose lower tip reaches beside the skirt.
@@ -230,7 +286,7 @@ def build_booster():
     """Unit-height stylized booster along +Z: barrel, grid fins, raceway."""
     reset_scene()
 
-    steel = material('steel', (0.72, 0.74, 0.78), metallic=0.95, roughness=0.38)
+    steel = steel_pbr('booster-steel', (0.72, 0.74, 0.78))
     dark = material('dark', (0.06, 0.06, 0.07), metallic=0.5, roughness=0.6)
 
     R = 0.062
