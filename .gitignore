@@ -10,5 +10,5 @@ dist/
 public/styles.css
 public/assets/
 
-# Local launch playbook (strategy, never published)
-LAUNCH.md
+# Local launch kit (strategy + media, never published)
+launch/
