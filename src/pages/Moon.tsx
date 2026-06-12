@@ -60,7 +60,7 @@ export const Moon: FC = () => (
       links={[
         { href: '/spacex-ai', label: '← Space × AI' },
         { href: '/mars', label: 'On to Mars →' },
-        { href: '/spacex-ipo', label: 'IPO Mission Control' },
+        { href: '/atlas?focus=moon', label: 'View in the atlas' },
       ]}
     />
   </Article>

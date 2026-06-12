@@ -47,7 +47,7 @@ export const Starlink: FC = () => (
       links={[
         { href: '/spacex-ipo', label: '← IPO Mission Control' },
         { href: '/spacex-ai', label: 'Space × AI →' },
-        { href: '/moon', label: 'The Moon →' },
+        { href: '/atlas?focus=earth', label: 'View in the atlas' },
       ]}
     />
   </Article>

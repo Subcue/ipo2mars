@@ -7,6 +7,7 @@ import { Starlink } from './Starlink'
 import { Moon } from './Moon'
 import { Atmosphere } from './Atmosphere'
 import { STILL } from './debug'
+import { SUN_DIR } from './sunlight'
 
 // Earth's axial tilt (~23.5°) applied to the shared frame so the globe and the
 // orbital planes lean together.
@@ -37,8 +38,13 @@ export function Experience() {
     >
       <color attach="background" args={['#05060a']} />
       <ResponsiveFraming />
-      <ambientLight intensity={0.42} />
-      <directionalLight position={[5, 2.5, 3]} intensity={1.8} color="#fff6e8" />
+      {/* One sun: low ambient so the night side is real, city lights carry it. */}
+      <ambientLight intensity={0.18} />
+      <directionalLight
+        position={SUN_DIR.clone().multiplyScalar(50)}
+        intensity={2.6}
+        color="#fff4e0"
+      />
 
       <Suspense fallback={null}>
         <group rotation={[AXIAL_TILT, 0, 0]}>

@@ -17,6 +17,7 @@ const options = {
     countdown: 'src/client/countdown.ts',
     reveal: 'src/client/reveal.ts',
     simulator: 'src/client/simulator.ts',
+    atlas: 'src/client/atlas/main.tsx',
   },
   bundle: true,
   format: 'esm',

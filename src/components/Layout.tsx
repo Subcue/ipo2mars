@@ -17,6 +17,9 @@ interface LayoutProps {
   analytics?: boolean
   /** Load the Mars settlement simulator island (the /mars page). */
   sim?: boolean
+  /** Full-screen atlas experience: mounts #atlas, loads /assets/atlas.js,
+   *  minimal chrome (no footer, no starfield), page owns the viewport. */
+  atlas?: boolean
 }
 
 export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
@@ -27,6 +30,7 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
   scene,
   analytics,
   sim,
+  atlas,
   children,
 }) => {
   const canonical = `${SITE.url}${path === '/' ? '/' : path}`
@@ -77,6 +81,9 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
           // WebGL Earth/constellation backdrop — progressive enhancement; with
           // JS or WebGL off, the SSR content below still reads and ranks.
           <div id="scene" class="pointer-events-none fixed inset-0 z-0" aria-hidden="true" />
+        ) : atlas ? (
+          // Interactive full-viewport stage: pointer events ON (raycast picking).
+          <div id="atlas" class="fixed inset-0 z-0" />
         ) : (
           <div class="starfield pointer-events-none fixed inset-0 z-0" aria-hidden="true" />
         )}
@@ -110,11 +117,12 @@ export const Layout: FC<PropsWithChildren<LayoutProps>> = ({
           </nav>
         </header>
 
-        <main class="relative z-10">{children}</main>
+        <main class={atlas ? 'pointer-events-none relative z-10' : 'relative z-10'}>{children}</main>
 
-        <Footer />
+        {atlas ? null : <Footer />}
 
         {scene ? <script type="module" src="/assets/scene.js" /> : null}
+        {atlas ? <script type="module" src="/assets/atlas.js" /> : null}
         {sim ? <script type="module" src="/assets/simulator.js" /> : null}
         <script type="module" src="/assets/countdown.js" />
         <script type="module" src="/assets/reveal.js" />

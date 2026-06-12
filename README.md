@@ -14,6 +14,7 @@ An open-source, interactive 3D atlas of SpaceX — from reusable rockets and the
 
 ## What's inside
 
+- 🧭 **The atlas (`/atlas`)** — a full-screen interactive stage: click Earth, the Moon, Mars, or the Starship in transit and the camera flies there. Real sun lighting with a day/night terminator and city lights, normal-mapped terrain, stylized bases on the Moon and Mars, a launch-and-booster-recovery loop at Earth, and shareable deep links (`/atlas?focus=mars`).
 - 🌍 **Live Starlink hero** — a textured Earth wrapped in the real Starlink constellation. Every dot is an actual satellite, placed from public [CelesTrak](https://celestrak.org) orbital data and propagated in your browser with SGP4.
 - 🚀 **IPO Mission Control** — a live countdown to the Nasdaq open, the $1.77T valuation, the $75B raise, and the demand-vs-raise oversubscription, every figure sourced and dated.
 - 🛰️ **The Starlink mesh** — what the constellation is, and why it's the revenue engine under the IPO story.
@@ -63,16 +64,19 @@ src/
   lib/               tle.ts (CelesTrak + KV), seo.ts (JSON-LD)
   data/              site.ts, ipo.ts (facts with source + lastVerified)
   routes/api.ts      /api/tle/starlink
-  client/            React + R3F island (built separately by esbuild)
-    scene/           Earth, Starlink, Moon, Atmosphere, Experience
+  client/            React + R3F islands (built separately by esbuild)
+    scene/           Earth (day/night/normal), Starlink, Moon, Atmosphere, Sun, Experience
+    atlas/           /atlas experience: camera flights, Mars, bases, ships, dock UI
     countdown.ts     tiny vanilla countdown
-public/textures/     NASA-derived Earth maps (public domain)
+public/textures/     planet maps (NASA-derived public domain + CC BY 4.0 Mars)
 ```
 
 ## Data sources & credits
 
 - **Orbital data:** [CelesTrak](https://celestrak.org) Starlink GP/TLE feed (public).
 - **Earth & Moon textures:** NASA-derived imagery (public domain), via the three.js examples.
+- **Mars texture:** [Solar System Scope](https://www.solarsystemscope.com/textures/) (CC BY 4.0).
+- **Vehicles & bases:** original stylized low-poly designs, not official SpaceX models.
 - **IPO figures:** public reporting (CNBC and others), each carrying a `source` + `lastVerified` in [`src/data/ipo.ts`](src/data/ipo.ts).
 
 ## Contributing

@@ -26,6 +26,7 @@ export interface NavLink {
 }
 
 export const NAV: NavLink[] = [
+  { href: '/atlas', label: 'Atlas' },
   { href: '/spacex-ipo', label: 'IPO' },
   { href: '/starlink', label: 'Starlink' },
   { href: '/spacex-ai', label: 'Space × AI' },

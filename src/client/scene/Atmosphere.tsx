@@ -1,13 +1,12 @@
 /** @jsxImportSource react */
 import { useMemo } from 'react'
-import { BackSide, ShaderMaterial, AdditiveBlending, Color } from 'three'
+import { BackSide, ShaderMaterial, AdditiveBlending, Color, Vector3 } from 'three'
 
-// Physically-motivated atmosphere on a concentric shell. For each pixel we find
-// how close its camera ray passes to the planet centre: rays that graze the limb
-// glow brightest and fade exponentially outward into space; rays that hit the
-// planet (closest < radius) get NO glow — so the disc stays clean and the halo
-// aligns perfectly with the real 3D limb (no flat-billboard perspective drift).
-// Self-contained — no bloom, nothing to flicker.
+// Physically-motivated atmosphere on a concentric shell around ANY center.
+// For each pixel we find how close its camera ray passes to the planet centre:
+// rays grazing the limb glow brightest and fade exponentially outward; rays
+// hitting the planet get no glow, so the disc stays clean and the halo hugs
+// the real 3D limb. Self-contained: no bloom, nothing to flicker.
 const VERT = /* glsl */ `
   varying vec3 vWorld;
   void main() {
@@ -19,29 +18,46 @@ const VERT = /* glsl */ `
 const FRAG = /* glsl */ `
   varying vec3 vWorld;
   uniform vec3 uColor;
+  uniform vec3 uCenter;
   uniform float uPlanet;
   uniform float uFalloff;
   uniform float uStrength;
   void main() {
+    vec3 co = cameraPosition - uCenter;
     vec3 rd = normalize(vWorld - cameraPosition);
-    float tca = dot(-cameraPosition, rd);
-    float closest = sqrt(max(dot(cameraPosition, cameraPosition) - tca * tca, 0.0));
-    float h = closest - uPlanet;                       // height of the ray above the limb
-    float glow = exp(-max(h, 0.0) * uFalloff);         // fade outward into space
-    glow *= smoothstep(uPlanet, uPlanet + 0.02, closest); // 0 over the disc, soft at the limb
+    float tca = dot(-co, rd);
+    float closest = sqrt(max(dot(co, co) - tca * tca, 0.0));
+    float h = closest - uPlanet;                          // ray height above the limb
+    float glow = exp(-max(h, 0.0) * uFalloff);            // fade outward into space
+    glow *= smoothstep(uPlanet, uPlanet + 0.02, closest); // 0 over the disc
     gl_FragColor = vec4(uColor, clamp(glow, 0.0, 1.0) * uStrength);
   }
 `
 
-export function Atmosphere({ planetRadius = 1 }: { planetRadius?: number }) {
+interface AtmosphereProps {
+  planetRadius?: number
+  center?: [number, number, number]
+  color?: string
+  strength?: number
+  falloff?: number
+}
+
+export function Atmosphere({
+  planetRadius = 1,
+  center = [0, 0, 0],
+  color = '#8ec5ff',
+  strength = 0.4,
+  falloff = 7.5,
+}: AtmosphereProps) {
   const mat = useMemo(
     () =>
       new ShaderMaterial({
         uniforms: {
-          uColor: { value: new Color('#8ec5ff') }, // light blue
+          uColor: { value: new Color(color) },
+          uCenter: { value: new Vector3(...center) },
           uPlanet: { value: planetRadius },
-          uFalloff: { value: 7.5 }, // higher = thinner halo
-          uStrength: { value: 0.4 }, // light / transparent
+          uFalloff: { value: falloff },
+          uStrength: { value: strength },
         },
         vertexShader: VERT,
         fragmentShader: FRAG,
@@ -49,16 +65,16 @@ export function Atmosphere({ planetRadius = 1 }: { planetRadius?: number }) {
         blending: AdditiveBlending,
         side: BackSide,
         depthWrite: false,
-        // Depth-tested so anything passing in FRONT of the halo (the Moon)
-        // occludes it instead of getting a ghostly additive wash painted over
-        // it. The shell sits at 1.6r, far from every surface, so no z-fights.
+        // Depth-tested so anything passing in FRONT of the halo (the Moon, a
+        // ship) occludes it instead of getting a ghostly additive wash.
         depthTest: true,
       }),
-    [planetRadius],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [planetRadius, color, strength, falloff, center[0], center[1], center[2]],
   )
 
   return (
-    <mesh>
+    <mesh position={center}>
       <sphereGeometry args={[planetRadius * 1.6, 64, 64]} />
       <primitive object={mat} attach="material" />
     </mesh>

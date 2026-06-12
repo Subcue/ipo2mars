@@ -8,6 +8,7 @@ import { Starlink } from './pages/Starlink'
 import { SpacexAi } from './pages/SpacexAi'
 import { Moon } from './pages/Moon'
 import { Mars } from './pages/Mars'
+import { Atlas } from './pages/Atlas'
 import { SITE, GA_ID } from './data/site'
 import { api } from './routes/api'
 import { refreshStarlinkTle } from './lib/tle'
@@ -69,6 +70,7 @@ interface PageDef {
   body: () => Child
   scene?: boolean
   sim?: boolean
+  atlas?: boolean
 }
 
 const ComingSoon = ({ title, blurb }: { title: string; blurb: string }) => (
@@ -88,6 +90,14 @@ const PAGES: PageDef[] = [
     description: SITE.description,
     body: () => <Home />,
     scene: true,
+  },
+  {
+    path: '/atlas',
+    title: 'The atlas: fly Earth, the Moon, and Mars in 3D · ipo2mars',
+    description:
+      'An interactive 3D stage: Earth in the live Starlink constellation, the Moon and Mars with their future bases, and Starships in flight. Select a destination and fly there.',
+    body: () => <Atlas />,
+    atlas: true,
   },
   {
     path: '/spacex-ipo',
@@ -144,6 +154,7 @@ for (const page of PAGES) {
         description={page.description}
         scene={page.scene}
         sim={page.sim}
+        atlas={page.atlas}
         analytics={wantsAnalytics(c)}
       >
         {page.body()}

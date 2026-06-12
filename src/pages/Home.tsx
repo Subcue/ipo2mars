@@ -36,7 +36,7 @@ export const Home: FC = () => (
         </p>
         <div class="animate-fade-up mt-10">
           <a
-            href="/spacex-ipo"
+            href="/atlas"
             class="rounded-full bg-white px-7 py-3 text-sm font-semibold text-space transition-transform hover:-translate-y-[1px]"
           >
             Enter the atlas

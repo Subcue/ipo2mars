@@ -87,6 +87,11 @@
   }
 }
 
+/* The atlas island hides the SSR fallback blurb once WebGL is mounted. */
+.atlas-ready .atlas-fallback {
+  display: none;
+}
+
 /* Scroll reveal (vanilla IntersectionObserver in /assets/reveal.js).
    Progressive enhancement: nothing hides until the script marks the root,
    so no-JS visitors and crawlers always see full content. */

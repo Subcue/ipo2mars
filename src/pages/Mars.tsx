@@ -40,7 +40,7 @@ export const Mars: FC = () => (
       links={[
         { href: '/moon', label: '← The Moon, first' },
         { href: '/spacex-ipo', label: 'IPO Mission Control' },
-        { href: 'https://github.com/Subcue/ipo2mars', label: 'Contribute the simulator' },
+        { href: '/atlas?focus=mars', label: 'View in the atlas' },
       ]}
     />
   </Article>
