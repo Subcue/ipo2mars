@@ -84,31 +84,61 @@ def export_glb(name):
 
 # --------------------------------------------------------------- starship ---
 
+def prism(name, outline, y_half, mat):
+    """Solid plate from a 2D outline in the XZ plane, extruded +-y_half.
+
+    outline: list of (x, z) tuples, counter-clockwise.
+    """
+    n = len(outline)
+    verts = [(x, -y_half, z) for x, z in outline] + [(x, y_half, z) for x, z in outline]
+    faces = [list(range(n))[::-1], [i + n for i in range(n)]]
+    for i in range(n):
+        j = (i + 1) % n
+        faces.append([i, j, j + n, i + n])
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    mesh.from_pydata(verts, [], faces)
+    mesh.validate()
+    m = obj.modifiers.new('bevel', 'BEVEL')
+    m.width = 0.004
+    m.segments = 2
+    assign(obj, mat)
+    return obj
+
+
 def build_starship():
-    """Unit-height stylized Starship along +Z: ogive nose, flaps, engine skirt."""
+    """Stylized Starship along +Z (unit height), proportioned after the classic
+    render: blunt ogive nose, delta forward flaps, large trapezoid aft flaps
+    reaching the engine skirt, weld rings, 3+4 engine cluster."""
     reset_scene()
 
     steel = material('steel', (0.78, 0.80, 0.84), metallic=0.95, roughness=0.32)
+    weld = material('weld', (0.55, 0.57, 0.62), metallic=0.9, roughness=0.5)
     tiles = material('tiles', (0.08, 0.09, 0.11), metallic=0.2, roughness=0.75)
     dark = material('engine-dark', (0.05, 0.05, 0.06), metallic=0.6, roughness=0.5)
 
-    R = 0.085
-    body_h = 0.62
+    # Real-ish proportions: 9m dia / 50m tall -> R = 0.09 of height.
+    R = 0.09
+    body_h = 0.66
     nose_h = 0.30
-    skirt_h = 0.08
+    skirt_h = 0.04
 
-    tube('skirt', R * 1.04, R, skirt_h, skirt_h / 2, mat=steel)
+    tube('skirt', R * 1.015, R, skirt_h, skirt_h / 2, mat=steel)
     body = tube('body', R, R, body_h, skirt_h + body_h / 2, mat=steel)
     smooth(body)
 
-    # Ogive nose: spin a profile curve around +Z.
-    steps = 24
+    # Blunt ogive nose: spin the profile to 90% then cap with a sphere tip.
+    steps = 22
+    blunt = 0.90
     verts = []
     for i in range(steps + 1):
-        t = i / steps
-        r = R * math.cos(t * math.pi / 2) ** 0.72
+        t = (i / steps) * blunt
+        r = R * math.cos(t * math.pi / 2) ** 0.62
         z = skirt_h + body_h + t * nose_h
         verts.append((r, 0, z))
+    tip_r = verts[-1][0]
+    tip_z = verts[-1][2]
     mesh = bpy.data.meshes.new('nose-profile')
     obj = bpy.data.objects.new('nose', mesh)
     bpy.context.collection.objects.link(obj)
@@ -122,10 +152,25 @@ def build_starship():
     assign(obj, steel)
     smooth(obj)
     obj.select_set(False)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=tip_r * 1.02,
+                                         location=(0, 0, tip_z))
+    cap = bpy.context.active_object
+    cap.name = 'nose-tip'
+    cap.scale = (1, 1, 0.85)
+    assign(cap, steel)
+    smooth(cap)
+
+    # Weld rings: subtle ring lines segmenting the barrel (like the render).
+    for i in range(1, 8):
+        z = skirt_h + body_h * i / 8
+        bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=R * 1.003, depth=0.0035, location=(0, 0, z))
+        ring = bpy.context.active_object
+        ring.name = f'weld-{i}'
+        assign(ring, weld)
 
     # Windward thermal-tile band: thin half-shell on the -Y side.
-    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=R * 1.012, depth=body_h + nose_h * 0.55,
-                                        location=(0, 0, skirt_h + (body_h + nose_h * 0.55) / 2))
+    bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=R * 1.012, depth=body_h + nose_h * 0.5,
+                                        location=(0, 0, skirt_h + (body_h + nose_h * 0.5) / 2))
     shell = bpy.context.active_object
     shell.name = 'tile-band'
     bpy.ops.object.mode_set(mode='EDIT')
@@ -135,33 +180,46 @@ def build_starship():
     assign(shell, tiles)
     smooth(shell)
 
-    # Flaps on the +-X sides: tapered plates, beveled.
-    def flap(name, z, w, ln, side):
-        bpy.ops.mesh.primitive_cube_add(size=1, location=(side * (R + w * 0.32), 0, z))
-        f = bpy.context.active_object
-        f.name = name
-        f.scale = (w, R * 0.34, ln)
-        f.rotation_euler = (0, side * math.radians(14), 0)
-        m = f.modifiers.new('bevel', 'BEVEL')
-        m.width = 0.006
-        m.segments = 2
-        assign(f, tiles)
+    # Flaps: thin tiled plates on the +-X sides (one plane, like the render).
+    # Aft pair: big trapezoids whose lower tip reaches beside the skirt.
+    aft_root_lo = skirt_h * 0.4
+    aft_root_hi = skirt_h + 0.205
+    aft = [
+        (R * 0.96, aft_root_hi),          # hinge top
+        (R * 0.96, aft_root_lo),          # hinge bottom
+        (R + 0.085, aft_root_lo - 0.012), # outer lower tip (flares past the skirt)
+        (R + 0.062, aft_root_hi - 0.085), # swept outer edge
+    ]
+    # Forward pair: smaller deltas at the nose-body junction, swept back.
+    fwd_root_lo = skirt_h + body_h - 0.012
+    fwd = [
+        (R * 0.80, fwd_root_lo + 0.150),  # hinge top (on the nose curve)
+        (R * 0.92, fwd_root_lo),          # hinge bottom
+        (R + 0.052, fwd_root_lo + 0.012), # outer lower tip
+        (R + 0.034, fwd_root_lo + 0.085), # swept leading edge
+    ]
+    for side in (+1, -1):
+        for name, outline in (('aft', aft), ('fwd', fwd)):
+            pts = [(side * x, z) for x, z in outline]
+            if side < 0:
+                pts = pts[::-1]  # keep winding consistent
+            prism(f'flap-{name}-{"l" if side > 0 else "r"}', pts, R * 0.10, tiles)
 
-    flap('flap-aft-l', skirt_h + body_h * 0.16, 0.075, 0.16, +1)
-    flap('flap-aft-r', skirt_h + body_h * 0.16, 0.075, 0.16, -1)
-    flap('flap-fwd-l', skirt_h + body_h + nose_h * 0.34, 0.05, 0.105, +1)
-    flap('flap-fwd-r', skirt_h + body_h + nose_h * 0.34, 0.05, 0.105, -1)
-
-    # Engine bells under the skirt.
-    for i, (ring_r, n, bell_r) in enumerate([(0.0, 1, 0.024), (R * 0.55, 5, 0.02)]):
-        for k in range(n):
-            a = (k / n) * 2 * math.pi
-            bpy.ops.mesh.primitive_cone_add(vertices=20, radius1=bell_r, radius2=bell_r * 0.45, depth=0.05,
-                                            location=(ring_r * math.cos(a), ring_r * math.sin(a), 0.012))
-            bell = bpy.context.active_object
-            bell.name = f'bell-{i}-{k}'
-            assign(bell, dark)
-            smooth(bell)
+    # Engine cluster: 3 sea-level bells in the middle, 4 vacuum bells outside.
+    for k in range(3):
+        a = k * 2 * math.pi / 3 + math.pi / 6
+        rr = R * 0.30
+        bpy.ops.mesh.primitive_cone_add(vertices=20, radius1=0.018, radius2=0.009, depth=0.045,
+                                        location=(rr * math.cos(a), rr * math.sin(a), 0.012))
+        assign(bpy.context.active_object, dark)
+        smooth(bpy.context.active_object)
+    for k in range(4):
+        a = k * math.pi / 2 + math.pi / 4
+        rr = R * 0.66
+        bpy.ops.mesh.primitive_cone_add(vertices=20, radius1=0.027, radius2=0.012, depth=0.05,
+                                        location=(rr * math.cos(a), rr * math.sin(a), 0.014))
+        assign(bpy.context.active_object, dark)
+        smooth(bpy.context.active_object)
 
     export_glb('starship')
 
