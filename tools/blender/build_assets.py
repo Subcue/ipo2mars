@@ -15,11 +15,8 @@
 
 import math
 import os
-import random
 
 import bpy
-
-random.seed(7)  # deterministic textures, reproducible GLBs
 
 OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'public', 'models')
 
@@ -72,39 +69,12 @@ def tube(name, r1, r2, depth, z, vertices=48, mat=None):
     return obj
 
 
-def brushed_roughness_image(size=256):
-    """Row-streaked noise: reads as rolled/brushed stainless under reflections.
-
-    Created fresh per scene: reset_scene() wipes bpy.data, so caching an
-    Image across builds would leave a dead reference.
-    """
-    existing = bpy.data.images.get('steel-roughness')
-    if existing is not None:
-        return existing
-    img = bpy.data.images.new('steel-roughness', size, size, alpha=False)
-    px = [0.0] * (size * size * 4)
-    for row in range(size):
-        base = 0.24 + random.random() * 0.12
-        for x in range(size):
-            v = max(0.08, min(0.6, base + (random.random() - 0.5) * 0.05))
-            i = (row * size + x) * 4
-            px[i] = px[i + 1] = px[i + 2] = v
-            px[i + 3] = 1.0
-    img.pixels = px
-    img.pack()
-    return img
-
-
 def steel_pbr(name='steel', color=(0.82, 0.84, 0.88)):
-    """Stainless with a baked brushed-roughness map (full PBR in glTF)."""
-    mat = material(name, color, metallic=1.0, roughness=0.5)
-    nt = mat.node_tree
-    bsdf = nt.nodes['Principled BSDF']
-    tex = nt.nodes.new('ShaderNodeTexImage')
-    tex.image = brushed_roughness_image()
-    tex.image.colorspace_settings.name = 'Non-Color'
-    nt.links.new(tex.outputs['Color'], bsdf.inputs['Roughness'])
-    return mat
+    """Plain factor-based stainless. Deliberately NO texture nodes: arbitrary
+    node graphs are where the glTF exporter silently drops things. The brushed
+    roughness map and final metal tuning are applied at load time in the app
+    (src/client/atlas/useModel.ts), keyed by these material names."""
+    return material(name, color, metallic=1.0, roughness=0.35)
 
 
 def split_windward(obj, mat_lee, mat_tiles):
@@ -178,7 +148,8 @@ def build_starship():
     reset_scene()
 
     steel = steel_pbr('steel')
-    tiles = material('tiles', (0.018, 0.018, 0.022), metallic=0.0, roughness=0.88)
+    # Glossy black ceramic: real TPS has a specular sheen, not chalk-matte.
+    tiles = material('tiles', (0.035, 0.035, 0.04), metallic=0.1, roughness=0.42)
     dark = material('engine-dark', (0.05, 0.05, 0.06), metallic=0.6, roughness=0.5)
 
     # Real-ish proportions: 9m dia / 50m tall -> R = 0.09 of height.
