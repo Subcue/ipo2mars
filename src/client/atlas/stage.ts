@@ -12,4 +12,6 @@ export const MOON_RADIUS = 0.5
 export const anchors = {
   moon: new Vector3(9, 0.4, 0),
   ship: new Vector3(20, 2, -12),
+  /** Transit ship velocity direction, for side-on follow framing. */
+  shipTan: new Vector3(1, 0, 0),
 }

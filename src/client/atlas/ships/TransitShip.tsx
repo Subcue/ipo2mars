@@ -48,6 +48,7 @@ export function TransitShip({
     g.position.copy(pos)
     g.quaternion.copy(q.setFromUnitVectors(UP, tan))
     anchors.ship.copy(pos)
+    anchors.shipTan.copy(tan)
   })
 
   return (

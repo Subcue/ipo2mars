@@ -76,7 +76,7 @@ public/textures/     planet maps (NASA-derived public domain + CC BY 4.0 Mars)
 - **Orbital data:** [CelesTrak](https://celestrak.org) Starlink GP/TLE feed (public).
 - **Earth & Moon textures:** NASA-derived imagery (public domain), via the three.js examples.
 - **Mars texture:** [Solar System Scope](https://www.solarsystemscope.com/textures/) (CC BY 4.0).
-- **Vehicles & bases:** original stylized low-poly designs, not official SpaceX models.
+- **Vehicles & bases:** original stylized designs, not official SpaceX models. Built procedurally with Blender: `tools/blender/build_assets.py` regenerates every GLB in `public/models/` (`blender --background --factory-startup --python tools/blender/build_assets.py`).
 - **IPO figures:** public reporting (CNBC and others), each carrying a `source` + `lastVerified` in [`src/data/ipo.ts`](src/data/ipo.ts).
 
 ## Contributing

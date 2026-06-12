@@ -14,6 +14,8 @@ export interface Destination {
   distance: number
   minDistance: number
   maxDistance: number
+  /** Optional custom arrival camera position (overrides approach math). */
+  cameraPos?: () => Vector3
   info: { name: string; fact: string; href: string; link: string }
 }
 
@@ -83,6 +85,12 @@ export const DESTINATIONS: Record<DestKey, Destination> = {
     distance: 0.9,
     minDistance: 0.3,
     maxDistance: 4,
+    // Side-on arrival: offset perpendicular to the velocity, lifted a touch.
+    cameraPos: () => {
+      const side = new Vector3(0, 1, 0).cross(anchors.shipTan)
+      if (side.lengthSq() < 1e-4) side.set(1, 0, 0)
+      return side.normalize().multiplyScalar(0.9).addScaledVector(new Vector3(0, 1, 0), 0.25).add(anchors.ship)
+    },
     info: {
       name: 'In transit',
       fact: 'A Starship on the long arc between Earth and Mars. Stylized, not an official design.',
@@ -92,8 +100,9 @@ export const DESTINATIONS: Record<DestKey, Destination> = {
   },
 }
 
-/** Camera position for a destination: target + scaled approach offset. */
+/** Camera position for a destination: custom hook or target + approach offset. */
 export function cameraPosFor(dest: Destination): Vector3 {
+  if (dest.cameraPos) return dest.cameraPos()
   const t = dest.target()
   return dest.approach.clone().normalize().multiplyScalar(dest.distance).add(t)
 }

@@ -95,6 +95,8 @@ export function AtlasExperience() {
       >
         <color attach="background" args={['#05060a']} />
         <ambientLight intensity={0.18} />
+        {/* Faint cool fill so ship/base dark sides stay readable in space. */}
+        <hemisphereLight args={['#2a3c5a', '#0a0c12', 0.14]} />
         <directionalLight
           position={SUN_DIR.clone().multiplyScalar(50)}
           intensity={2.6}
