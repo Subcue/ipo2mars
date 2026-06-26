@@ -16,11 +16,13 @@ interface MoonProps {
   onTick?: (worldPos: Vector3) => void
   onClick?: () => void
   onHover?: (hovering: boolean) => void
+  /** Hold the orbit/spin still (e.g. while the camera is framing the base). */
+  paused?: boolean
   /** Surface furniture (bases): rendered inside the rotating body. */
   children?: React.ReactNode
 }
 
-export function Moon({ orbitRadius = 9, radius = 0.5, onTick, onClick, onHover, children }: MoonProps) {
+export function Moon({ orbitRadius = 9, radius = 0.5, onTick, onClick, onHover, paused = false, children }: MoonProps) {
   const pivot = useRef<Group>(null)
   const body = useRef<Mesh>(null)
   const world = useRef(new Vector3())
@@ -30,7 +32,7 @@ export function Moon({ orbitRadius = 9, radius = 0.5, onTick, onClick, onHover, 
 
   useFrame((_, dt) => {
     if (!pivot.current) return
-    if (!STILL) {
+    if (!STILL && !paused) {
       pivot.current.rotation.y += dt * 0.02 // slow orbit (~5 min per revolution)
       if (body.current) body.current.rotation.y += dt * 0.02 // tidal lock
     }

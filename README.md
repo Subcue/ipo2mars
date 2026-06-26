@@ -76,7 +76,8 @@ public/textures/     planet maps (NASA-derived public domain + CC BY 4.0 Mars)
 - **Orbital data:** [CelesTrak](https://celestrak.org) Starlink GP/TLE feed (public).
 - **Earth & Moon textures:** NASA-derived imagery (public domain), via the three.js examples.
 - **Mars texture:** [Solar System Scope](https://www.solarsystemscope.com/textures/) (CC BY 4.0).
-- **Vehicles & bases:** original stylized designs, not official SpaceX models. Built procedurally with Blender: `tools/blender/build_assets.py` regenerates every GLB in `public/models/` (`blender --background --factory-startup --python tools/blender/build_assets.py`).
+- **Surface-detail maps:** [ambientCG](https://ambientcg.com) brushed-steel + concrete (CC0 / public domain), downscaled and applied to the hulls and landing-pad decks at load (`src/client/atlas/useModel.ts`).
+- **Vehicles & bases:** original stylized designs, not official SpaceX models. Built procedurally with Blender: `tools/blender/build_assets.py` regenerates every GLB in `public/models/` (`blender --background --factory-startup --python tools/blender/build_assets.py`). The Mars/Moon outposts add landed Starships, an HLS-style lander, habs, greenhouses, solar fields, tanks and rovers; the camera frames each as a hero shot.
 - **IPO figures:** public reporting (CNBC and others), each carrying a `source` + `lastVerified` in [`src/data/ipo.ts`](src/data/ipo.ts).
 
 ## Contributing

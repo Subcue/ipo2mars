@@ -12,6 +12,7 @@ import { Mars } from './Mars'
 import { MoonBase } from './bases/MoonBase'
 import { MarsBase } from './bases/MarsBase'
 import { TransitShip } from './ships/TransitShip'
+import { TransitRoute } from './ships/TransitRoute'
 import { LaunchCycle } from './ships/LaunchCycle'
 import { anchors, MARS_POS, MARS_RADIUS } from './stage'
 import { DESTINATIONS, cameraPosFor, isDestKey, type DestKey } from './flight'
@@ -31,26 +32,47 @@ function FlightDirector({
   reduced: boolean
 }) {
   const controls = useRef<CameraControls>(null)
-  const last = useRef<DestKey | null>(null)
+  const placed = useRef(false)
+  const frames = useRef(0)
 
+  // Subsequent focus changes fly. The FIRST placement is deferred to useFrame
+  // (below) so the base/Moon world anchors have been written at least once —
+  // otherwise a cold `?focus=mars` deep-link would frame off a stale default.
   useEffect(() => {
+    if (!placed.current) return
     const c = controls.current
     if (!c) return
     const dest = DESTINATIONS[focus]
-    const t = dest.target()
-    const p = cameraPosFor(dest)
     c.minDistance = dest.minDistance
     c.maxDistance = dest.maxDistance
-    // First placement (initial mount or reduced motion): jump. Else: fly.
-    const animate = !reduced && last.current !== null
-    c.setLookAt(p.x, p.y, p.z, t.x, t.y, t.z, animate)
-    last.current = focus
+    const t = dest.target()
+    const p = cameraPosFor(dest)
+    c.setLookAt(p.x, p.y, p.z, t.x, t.y, t.z, !reduced)
   }, [focus, reduced])
 
   useFrame(() => {
     const c = controls.current
     if (!c) return
     const dest = DESTINATIONS[focus]
+    // Initial jump — but only once the focus's body has reported a live world
+    // anchor (the bodies load async; the base hero offset needs the real
+    // surface normal). Failsafe: place anyway after ~4s so a stuck load can't
+    // leave the camera parked at its default.
+    if (!placed.current) {
+      frames.current += 1
+      const ready =
+        focus === 'moon' ? anchors.ready.moon :
+        focus === 'mars' ? anchors.ready.mars :
+        focus === 'ship' ? anchors.ready.ship : true
+      if (!ready && frames.current < 240) return
+      c.minDistance = dest.minDistance
+      c.maxDistance = dest.maxDistance
+      const t = dest.target()
+      const p = cameraPosFor(dest)
+      c.setLookAt(p.x, p.y, p.z, t.x, t.y, t.z, false)
+      placed.current = true
+      return
+    }
     if (dest.tracks) {
       const t = dest.target()
       c.moveTo(t.x, t.y, t.z, false)
@@ -125,13 +147,18 @@ export function AtlasExperience() {
             onTick={(p) => anchors.moon.copy(p)}
             onClick={() => setFocus('moon')}
             onHover={setHovering}
+            paused={focus === 'moon'}
           >
             <MoonBase />
           </Moon>
-          <Mars onClick={() => setFocus('mars')} onHover={setHovering}>
+          <Mars onClick={() => setFocus('mars')} onHover={setHovering} paused={focus === 'mars'}>
             <MarsBase />
           </Mars>
-          <TransitShip onClick={() => setFocus('ship')} onHover={setHovering} />
+          {focus === 'overview' ? <TransitRoute /> : null}
+          <TransitShip onClick={() => setFocus('ship')} onHover={setHovering} primary />
+          {/* A second, smaller ship further along the cycle: the route reads as
+              traffic, not one lone vehicle. Not the camera's follow target. */}
+          <TransitShip phase={0.46} primary={false} length={0.24} />
           <LaunchCycle />
         </Suspense>
 
@@ -144,7 +171,7 @@ export function AtlasExperience() {
           falloff={11}
         />
         <Sun />
-        <Stars radius={200} depth={60} count={4000} factor={5} saturation={0} fade speed={0} />
+        <Stars radius={200} depth={80} count={9000} factor={5} saturation={0} fade speed={0} />
 
         <FlightDirector focus={focus} reduced={reduced} />
       </Canvas>

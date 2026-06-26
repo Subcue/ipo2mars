@@ -7,19 +7,21 @@ import { MARS_POS, MARS_RADIUS } from './stage'
 interface MarsProps {
   onClick?: () => void
   onHover?: (hovering: boolean) => void
+  /** Hold the spin still (e.g. while the camera is framing the base). */
+  paused?: boolean
   /** Surface furniture (bases): rendered inside the rotating body. */
   children?: React.ReactNode
 }
 
 // Texture: Solar System Scope 2k Mars (CC BY 4.0), credited in the README.
-export function Mars({ onClick, onHover, children }: MarsProps) {
+export function Mars({ onClick, onHover, paused = false, children }: MarsProps) {
   const tex = useLoader(TextureLoader, '/textures/mars.jpg')
   tex.colorSpace = SRGBColorSpace
   tex.anisotropy = 8
   const body = useRef<Mesh>(null)
 
   useFrame((_, dt) => {
-    if (body.current) body.current.rotation.y += dt * 0.0025
+    if (body.current && !paused) body.current.rotation.y += dt * 0.0025
   })
 
   return (

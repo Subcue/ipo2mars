@@ -1,8 +1,16 @@
 /** @jsxImportSource react */
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { QuadraticBezierCurve3, Quaternion, Vector3, type Group } from 'three'
+import {
+  AdditiveBlending,
+  QuadraticBezierCurve3,
+  Quaternion,
+  Vector3,
+  type Group,
+  type Sprite,
+} from 'three'
 import { Starship, Booster, Flame } from './Starship'
+import { glowTexture } from './Plume'
 
 const UP = new Vector3(0, 1, 0)
 
@@ -25,7 +33,9 @@ export function LaunchCycle() {
   const stack = useRef<Group>(null) // booster (+ship until staging)
   const shipRef = useRef<Group>(null) // free-flying ship after staging
   const flameRef = useRef<Group>(null)
+  const padGlow = useRef<Sprite>(null) // scorch glow on the pad during burn
   const q = useMemo(() => new Quaternion(), [])
+  const padTex = useMemo(() => glowTexture(), [])
 
   const geom = useMemo(() => {
     // Pad on the lit front: lat 8°, lon 35°.
@@ -62,6 +72,7 @@ export function LaunchCycle() {
     const stk = stack.current
     const ship = shipRef.current
     const flame = flameRef.current
+    const pg = padGlow.current
     if (!stk || !ship || !flame) return
 
     // Default orientations: along the surface normal.
@@ -74,6 +85,7 @@ export function LaunchCycle() {
       ship.position.copy(pad.clone().addScaledVector(n, 0.115))
       ship.quaternion.copy(stk.quaternion)
       flame.visible = false
+      if (pg) pg.material.opacity = 0
     } else if (t < T.staging) {
       // Full-stack ascent.
       const k = easeInQuad((t - T.liftoff) / (T.staging - T.liftoff))
@@ -89,6 +101,8 @@ export function LaunchCycle() {
       flame.position.copy(pos)
       flame.quaternion.copy(stk.quaternion)
       flame.scale.setScalar(1 + Math.sin(clock.elapsedTime * 37) * 0.18)
+      // Scorch glow on the pad, brightest at the base, gone by mid-ascent.
+      if (pg) pg.material.opacity = Math.max(0, 1 - k * 1.7) * 0.9
     } else {
       // After staging: the ship burns outward...
       const ks = Math.min((t - T.staging) / (T.shipGone - T.staging), 1)
@@ -119,6 +133,8 @@ export function LaunchCycle() {
         flame.quaternion.copy(stk.quaternion)
         flame.scale.setScalar(0.8 + Math.sin(clock.elapsedTime * 41) * 0.22)
       }
+      // Touchdown glow swells as the booster settles onto the pad.
+      if (pg) pg.material.opacity = burning ? Math.max(0, (kb - 0.45) / 0.55) * 0.8 : 0
     }
   })
 
@@ -129,6 +145,18 @@ export function LaunchCycle() {
         <cylinderGeometry args={[0.035, 0.035, 0.003, 20]} />
         <meshStandardMaterial color="#6f7682" roughness={0.85} />
       </mesh>
+      {/* Additive scorch glow; opacity driven each frame by the burn state. */}
+      <sprite ref={padGlow} position={geom.pad.clone().addScaledVector(geom.n, 0.02)} scale={[0.3, 0.3, 1]}>
+        <spriteMaterial
+          map={padTex}
+          color="#ff8a3c"
+          blending={AdditiveBlending}
+          depthWrite={false}
+          transparent
+          opacity={0}
+          toneMapped={false}
+        />
+      </sprite>
       <group ref={stack}>
         <Booster length={0.115} />
       </group>

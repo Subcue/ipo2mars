@@ -7,6 +7,9 @@ import {
   PMREMGenerator,
   RepeatWrapping,
   RGBAFormat,
+  SRGBColorSpace,
+  TextureLoader,
+  Vector2,
   type Group,
   type Texture,
 } from 'three'
@@ -14,6 +17,37 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 
 let envCache: Texture | null = null
 let brushedCache: DataTexture | null = null
+let hullNormalCache: Texture | null = null
+let deckCache: { color: Texture; normal: Texture } | null = null
+
+// CC0 brushed-steel normal map (ambientCG Metal032), tiled around the hull for
+// fine surface grain the procedural roughness can't give. Loaded once, shared.
+function hullNormal(): Texture {
+  if (hullNormalCache) return hullNormalCache
+  const t = new TextureLoader().load('/textures/hull-normal.jpg')
+  t.wrapS = t.wrapT = RepeatWrapping
+  t.repeat.set(5, 9)
+  t.anisotropy = 8
+  hullNormalCache = t
+  return t
+}
+
+// CC0 concrete (ambientCG Concrete034) for landing-pad decks. Color multiplies
+// the GLB's per-base deck tint, so Mars reads warm and the Moon reads grey.
+function deckTextures(): { color: Texture; normal: Texture } {
+  if (deckCache) return deckCache
+  const loader = new TextureLoader()
+  const color = loader.load('/textures/deck-concrete.jpg')
+  const normal = loader.load('/textures/deck-concrete-normal.jpg')
+  color.colorSpace = SRGBColorSpace
+  for (const t of [color, normal]) {
+    t.wrapS = t.wrapT = RepeatWrapping
+    t.repeat.set(4, 4)
+    t.anisotropy = 8
+  }
+  deckCache = { color, normal }
+  return deckCache
+}
 
 // One shared PMREM studio environment for the Blender-built models. Applied
 // PER MATERIAL (not scene.environment) so the Earth's night side stays dark
@@ -67,6 +101,8 @@ function tune(m: MeshStandardMaterial, env: Texture) {
     m.metalness = 1
     m.roughness = 0.55 // scaled down by the map's green channel per-texel
     m.roughnessMap = brushedRoughness()
+    m.normalMap = hullNormal()
+    m.normalScale = new Vector2(0.28, 0.28) // subtle grain, not noise
     m.envMapIntensity = 1.9
     m.color.setRGB(0.95, 0.96, 1.0)
   } else if (name === 'tiles') {
@@ -79,6 +115,14 @@ function tune(m: MeshStandardMaterial, env: Texture) {
     m.metalness = 1
     m.roughness = 0.5
     m.envMapIntensity = 1.4
+  } else if (name === 'deck') {
+    const t = deckTextures()
+    m.map = t.color
+    m.normalMap = t.normal
+    m.normalScale = new Vector2(0.6, 0.6)
+    m.roughness = 0.95
+    m.metalness = 0
+    m.envMapIntensity = 0.4
   } else {
     m.envMapIntensity = 1.0
   }

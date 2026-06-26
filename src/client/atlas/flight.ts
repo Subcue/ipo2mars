@@ -3,6 +3,21 @@ import { EARTH_POS, MARS_POS, anchors } from './stage'
 
 export type DestKey = 'overview' | 'earth' | 'moon' | 'mars' | 'ship'
 
+const WORLD_UP = new Vector3(0, 1, 0)
+
+// A 3/4 "hero" view of a surface base: lifted along the local surface normal
+// and offset tangentially so the body curves away behind the settlement. Used
+// for Moon/Mars so the bases read as the feature, not a speck on a full disc.
+function baseHero(base: Vector3, center: Vector3, up: number, side: number): Vector3 {
+  const normal = base.clone().sub(center)
+  if (normal.lengthSq() < 1e-6) normal.set(0, 1, 0)
+  normal.normalize()
+  const tangent = new Vector3().crossVectors(WORLD_UP, normal)
+  if (tangent.lengthSq() < 1e-4) tangent.set(1, 0, 0)
+  tangent.normalize()
+  return base.clone().addScaledVector(normal, up).addScaledVector(tangent, side)
+}
+
 export interface Destination {
   label: string
   /** Live focal point (moving bodies resolve at call time). */
@@ -22,9 +37,9 @@ export interface Destination {
 export const DESTINATIONS: Record<DestKey, Destination> = {
   overview: {
     label: 'Overview',
-    target: () => new Vector3(16, 1, -10),
+    target: () => new Vector3(18, 1, -11),
     approach: new Vector3(-0.55, 0.45, 1),
-    distance: 34,
+    distance: 40,
     minDistance: 10,
     maxDistance: 90,
     info: {
@@ -50,12 +65,14 @@ export const DESTINATIONS: Record<DestKey, Destination> = {
   },
   moon: {
     label: 'Moon',
-    target: () => anchors.moon.clone(),
+    target: () => anchors.moonBase.clone(),
     tracks: true,
     approach: new Vector3(0.5, 0.35, 1),
     distance: 1.7,
-    minDistance: 0.8,
+    minDistance: 0.45,
     maxDistance: 6,
+    // Hero shot of the lunar outpost; scroll out to take in the whole Moon.
+    cameraPos: () => baseHero(anchors.moonBase, anchors.moon, 0.5, 0.62),
     info: {
       name: 'The Moon',
       fact: 'Starship HLS is the contracted lander; the first crewed landing targets Artemis IV.',
@@ -65,11 +82,14 @@ export const DESTINATIONS: Record<DestKey, Destination> = {
   },
   mars: {
     label: 'Mars',
-    target: () => MARS_POS.clone(),
+    target: () => anchors.marsBase.clone(),
+    tracks: true,
     approach: new Vector3(0.5, 0.3, 0.81),
     distance: 2.3,
-    minDistance: 0.95,
+    minDistance: 0.5,
     maxDistance: 8,
+    // Hero shot of the settlement; scroll out to take in the whole planet.
+    cameraPos: () => baseHero(anchors.marsBase, MARS_POS, 0.62, 0.8),
     info: {
       name: 'Mars',
       fact: 'The stated goal: a self-sustaining city of a million people.',
