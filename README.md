@@ -6,7 +6,7 @@ An open-source, interactive 3D atlas of SpaceX — from reusable rockets and the
 
 > ⚠️ **Unofficial fan project.** Not affiliated with, endorsed by, or sponsored by SpaceX, Starlink, xAI, Tesla, or Elon Musk. Nothing here is investment advice. All figures cite public reporting.
 
-![ipo2mars — a 3D map of SpaceX's future](docs/preview.png)
+![ipo2mars atlas: the Mars settlement, the lunar outpost with Earth rising, a Starship in transit, and Earth with the live Starlink shell](docs/preview.png)
 
 **Live:** https://ipo2mars.com · **Built in public** for the SpaceX (SPCX) listing.
 
