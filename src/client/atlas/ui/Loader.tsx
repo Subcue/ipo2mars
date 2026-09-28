@@ -5,9 +5,11 @@ import { useProgress } from '@react-three/drei'
 // Full-screen veil while textures and models stream in: a hairline progress
 // bar and a mono readout, then a slow fade as the camera begins its approach.
 export function Loader({ ready }: { ready: boolean }) {
-  const { progress, active } = useProgress()
+  // `ready` = the stage's own Suspense resolved. Surface bases keep
+  // streaming after that (their own boundaries), so don't wait on them.
+  const { progress } = useProgress()
   const [gone, setGone] = useState(false)
-  const done = ready && !active
+  const done = ready
   useEffect(() => {
     if (!done) return
     const t = setTimeout(() => setGone(true), 1400)
