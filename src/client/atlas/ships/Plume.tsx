@@ -1,130 +1,142 @@
 /** @jsxImportSource react */
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import {
-  AdditiveBlending,
-  CanvasTexture,
-  DoubleSide,
-  type Group,
-  type Sprite,
-} from 'three'
+import { AdditiveBlending, Color, DoubleSide, PlaneGeometry, ShaderMaterial } from 'three'
+import { NOISE } from '../render/glsl'
+import { glowTexture } from '../render/textures'
 import { STILL } from '../../scene/debug'
 
-// One shared radial-gradient sprite for the soft engine glow. This is a
-// browser-only island (no SSR), so a 2D canvas texture is safe and cheap.
-let glowTex: CanvasTexture | null = null
-export function glowTexture(): CanvasTexture {
-  if (glowTex) return glowTex
-  const s = 128
-  const c = document.createElement('canvas')
-  c.width = c.height = s
-  const ctx = c.getContext('2d')!
-  const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2)
-  g.addColorStop(0.0, 'rgba(255,255,255,1)')
-  g.addColorStop(0.22, 'rgba(255,255,255,0.85)')
-  g.addColorStop(0.5, 'rgba(255,255,255,0.25)')
-  g.addColorStop(1.0, 'rgba(255,255,255,0)')
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, s, s)
-  glowTex = new CanvasTexture(c)
-  return glowTex
+// Engine plume as an axial billboard: a quad along the thrust axis (local -Y)
+// that turns about that axis to face the camera, shaded in-shader with a soft
+// gaussian cross-section, a hot core, drifting turbulence and (sea level only)
+// shock diamonds. No hard silhouette anywhere, and no postprocessing: the
+// "bloom" is the throat sprite. Sizes are in the parent's units.
+const VERT = /* glsl */ `
+#include <common>
+#include <logdepthbuf_pars_vertex>
+uniform float uLen;
+uniform float uWidth;
+varying vec2 vP;
+void main() {
+  vP = vec2(position.x, position.y);
+  vec3 origin = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+  vec3 axisW = (modelMatrix * vec4(0.0, -1.0, 0.0, 0.0)).xyz;
+  float scale = length(axisW);
+  vec3 axis = axisW / scale;
+  vec3 toCam = normalize(cameraPosition - origin);
+  vec3 side = cross(axis, toCam);
+  float sl = length(side);
+  side = sl > 1e-4 ? side / sl : vec3(1.0, 0.0, 0.0);
+  float y = position.y;
+  float w = mix(uWidth * 0.16, uWidth, pow(y, 0.5));
+  vec3 wp = origin + axis * (y * uLen * scale) + side * (position.x * w * scale);
+  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
+  #include <logdepthbuf_vertex>
 }
+`
 
-// Deterministic flicker (no Math.random): a couple of detuned sines read as
-// turbulent combustion without ever resampling.
-function flicker(t: number): number {
-  return 0.86 + Math.sin(t * 41) * 0.1 + Math.sin(t * 23.3) * 0.05
+const FRAG = /* glsl */ `
+#include <common>
+#include <logdepthbuf_pars_fragment>
+uniform float uTime;
+uniform float uIntensity;
+uniform float uDiamonds;
+uniform vec3 uCore;
+uniform vec3 uOuter;
+varying vec2 vP;
+${NOISE}
+void main() {
+  #include <logdepthbuf_fragment>
+  float y = vP.y;
+  float x = abs(vP.x);
+  // turbulence only downstream; the flow leaves the bell smooth
+  float n = vnoise(vec3(y * 2.2 - uTime * 2.5, vP.x * 1.1, uTime * 0.25));
+  float turb = mix(1.0, 0.8 + 0.4 * n, smoothstep(0.08, 0.5, y));
+  float body = exp(-x * x * 2.6) * exp(-y * 2.8) * turb;
+  float core = exp(-x * x * 20.0) * exp(-y * 9.0);
+  float diamonds = uDiamonds * pow(0.5 + 0.5 * cos(y * 34.0), 12.0) * exp(-x * x * 46.0) * exp(-y * 2.6);
+  float fade = (1.0 - smoothstep(0.65, 1.0, x)) * (1.0 - smoothstep(0.7, 1.0, y)) * smoothstep(0.0, 0.04, y);
+  vec3 col = (uOuter * body + uCore * (core * 1.8 + diamonds * 1.4)) * uIntensity * fade;
+  gl_FragColor = vec4(col, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}
+`
+
+let plumeGeo: PlaneGeometry | null = null
+function geometry() {
+  if (!plumeGeo) {
+    plumeGeo = new PlaneGeometry(2, 1, 1, 24)
+    plumeGeo.translate(0, 0.5, 0) // x in [-1, 1], y in [0, 1]
+  }
+  return plumeGeo
 }
 
 interface PlumeProps {
-  /** Overall plume size (length & width scale together). */
-  scale?: number
-  /** Brightness multiplier, 0 cuts the plume out entirely. */
+  length: number
+  width: number
   intensity?: number
-  /** Bright inner color. */
   core?: string
-  /** Faint outer color. */
   outer?: string
-  /** Wide, long, faint vacuum plume vs. tight, bright atmospheric column. */
-  vacuum?: boolean
+  /** 0 in vacuum, ~1 for a sea-level flame. */
+  diamonds?: number
+  /** Throat glow sprite size (0 = none). */
+  halo?: number
 }
 
-// Engine plume firing down -Y from the tail (y = 0): a narrow throat that
-// flares downstream, layered as additive cones + a throat glow sprite. No
-// postprocessing — the "bloom" is the sprite, which keeps it stable on GPUs
-// where real bloom flickers.
 export function Plume({
-  scale = 1,
+  length,
+  width,
   intensity = 1,
-  core = '#cfe6ff',
-  outer = '#4f93ff',
-  vacuum = true,
+  core = '#dfe9ff',
+  outer = '#5b7dff',
+  diamonds = 0,
+  halo = 0,
 }: PlumeProps) {
-  const grp = useRef<Group>(null)
-  const halo = useRef<Sprite>(null)
+  const mat = useMemo(
+    () =>
+      new ShaderMaterial({
+        uniforms: {
+          uLen: { value: length },
+          uWidth: { value: width },
+          uTime: { value: 0 },
+          uIntensity: { value: intensity },
+          uDiamonds: { value: diamonds },
+          uCore: { value: new Color(core) },
+          uOuter: { value: new Color(outer) },
+        },
+        vertexShader: VERT,
+        fragmentShader: FRAG,
+        transparent: true,
+        depthWrite: false,
+        blending: AdditiveBlending,
+        side: DoubleSide,
+      }),
+    [length, width, core, outer, diamonds, intensity],
+  )
   const tex = useMemo(() => glowTexture(), [])
 
-  const len = (vacuum ? 4.4 : 2.9) * scale
-  const wide = (vacuum ? 0.92 : 0.6) * scale
-  const throat = (vacuum ? 0.16 : 0.22) * scale
-  const coreLen = len * 0.6
-  const haloR = wide * (vacuum ? 2.1 : 2.5)
-
   useFrame(({ clock }) => {
-    const g = grp.current
-    if (!g) return
-    const f = STILL ? 0.9 : flicker(clock.elapsedTime)
-    g.scale.set(1, f, 1) // breathe along the axis
-    if (halo.current) {
-      const s = haloR * (0.92 + (f - 0.86) * 1.6)
-      halo.current.scale.set(s, s, 1)
-    }
+    mat.uniforms.uTime.value = STILL ? 0 : clock.elapsedTime
   })
 
   if (intensity <= 0) return null
-
   return (
-    <group ref={grp}>
-      {/* Soft outer body: a stretched radial-gradient sprite, so the plume
-          falls off into space with no hard silhouette (a cone would show one). */}
-      <sprite position={[0, -len * 0.42, 0]} scale={[wide * 2.4, len * 1.05, 1]}>
-        <spriteMaterial
-          map={tex}
-          color={outer}
-          blending={AdditiveBlending}
-          depthWrite={false}
-          transparent
-          opacity={0.55 * intensity}
-          toneMapped={false}
-        />
-      </sprite>
-
-      {/* Bright core column. */}
-      <mesh position={[0, -coreLen / 2, 0]}>
-        <cylinderGeometry args={[throat * 0.8, wide * 0.4, coreLen, 24, 1, true]} />
-        <meshBasicMaterial
-          color={core}
-          transparent
-          opacity={0.5 * intensity}
-          blending={AdditiveBlending}
-          depthWrite={false}
-          side={DoubleSide}
-          toneMapped={false}
-        />
-      </mesh>
-
-      {/* Hot throat halo: the bright spot right at the nozzle. */}
-      <sprite ref={halo} position={[0, -throat * 0.4, 0]} scale={[haloR, haloR, 1]}>
-        <spriteMaterial
-          map={tex}
-          color={core}
-          blending={AdditiveBlending}
-          depthWrite={false}
-          transparent
-          opacity={1.0 * intensity}
-          toneMapped={false}
-        />
-      </sprite>
+    <group>
+      <mesh geometry={geometry()} material={mat} frustumCulled={false} renderOrder={5} />
+      {halo > 0 ? (
+        <sprite scale={[halo, halo, 1]} renderOrder={6}>
+          <spriteMaterial
+            map={tex}
+            color={core}
+            blending={AdditiveBlending}
+            depthWrite={false}
+            transparent
+            opacity={Math.min(1, intensity)}
+            toneMapped={false}
+          />
+        </sprite>
+      ) : null}
     </group>
   )
 }

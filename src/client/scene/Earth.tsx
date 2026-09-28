@@ -14,49 +14,70 @@ import {
 import { STILL } from './debug'
 import { SUN_DIR } from './sunlight'
 
-// Earth with a real day/night cycle:
-// - normal map for terrain relief under the sun
-// - city lights as emissive, masked by a terminator term injected into the
-//   standard material (lights fade in only where the sun has set)
-// No postprocessing involved; the masking runs inside the material shader.
+// Earth with a real day/night cycle, all inside the standard material:
+// - oceans are glossy and land is matte (specular map -> roughness), so the
+//   sun leaves a glint on the sea
+// - terrain relief from the normal map
+// - city lights fade in only past the terminator and are dimmed by cloud
+// - clouds cast soft shadows on the ground
+// The cloud map keeps its coverage in the ALPHA channel (RGB is flat white).
+// The atmosphere is a separate scattering shell (Atmosphere.tsx). No
+// postprocessing anywhere.
 export function Earth({ radius = 1 }: { radius?: number }) {
-  const [day, normal, lights, clouds] = useLoader(TextureLoader, [
+  const [day, normal, lights, clouds, spec] = useLoader(TextureLoader, [
     '/textures/earth.jpg',
     '/textures/earth-normal.jpg',
     '/textures/earth-lights.png',
     '/textures/earth-clouds.png',
+    '/textures/earth-specular.jpg',
   ])
   day.colorSpace = SRGBColorSpace
   lights.colorSpace = SRGBColorSpace
   // Anisotropic filtering removes grazing-angle texture shimmer on rotation.
-  for (const t of [day, normal, lights, clouds]) t.anisotropy = 8
+  for (const t of [day, normal, lights, clouds, spec]) t.anisotropy = 8
 
   const earthRef = useRef<Mesh>(null)
   const cloudRef = useRef<Mesh>(null)
   const shaderRef = useRef<WebGLProgramParametersWithUniforms | null>(null)
   const sunView = useMemo(() => new Vector3(), [])
 
-  // Inject the terminator mask: 1 deep on the night side, 0 in daylight.
   const onBeforeCompile = useMemo(
     () => (shader: WebGLProgramParametersWithUniforms) => {
       shader.uniforms.uSunDirView = { value: new Vector3(0, 0, 1) }
+      shader.uniforms.uClouds = { value: clouds }
+      shader.uniforms.uSpec = { value: spec }
+      shader.uniforms.uCloudShift = { value: 0 }
       shader.fragmentShader = shader.fragmentShader
         .replace(
           'void main() {',
-          'uniform vec3 uSunDirView;\nvoid main() {',
+          `uniform vec3 uSunDirView;
+uniform sampler2D uClouds;
+uniform sampler2D uSpec;
+uniform float uCloudShift;
+void main() {`,
+        )
+        .replace(
+          '#include <roughnessmap_fragment>',
+          `#include <roughnessmap_fragment>
+          float ocean = texture2D(uSpec, vMapUv).g;
+          float cloudCover = texture2D(uClouds, vMapUv + vec2(uCloudShift, 0.0)).a;
+          roughnessFactor = mix(0.93, 0.36, ocean);
+          // deeper, cooler oceans; a touch more life in the land
+          diffuseColor.rgb = mix(diffuseColor.rgb * vec3(1.06, 1.04, 0.98), diffuseColor.rgb * vec3(0.72, 0.86, 1.0), ocean);
+          diffuseColor.rgb *= 1.0 - cloudCover * 0.32;`,
         )
         .replace(
           '#include <emissivemap_fragment>',
           `#include <emissivemap_fragment>
           {
             float sunDot = dot(normalize(vNormal), uSunDirView);
-            float night = 1.0 - smoothstep(-0.18, 0.07, sunDot);
-            totalEmissiveRadiance *= night;
+            float night = 1.0 - smoothstep(-0.2, 0.05, sunDot);
+            totalEmissiveRadiance *= night * (1.0 - cloudCover * 0.75);
           }`,
         )
       shaderRef.current = shader
     },
-    [],
+    [clouds, spec],
   )
 
   useFrame(({ camera }, dt) => {
@@ -64,33 +85,46 @@ export function Earth({ radius = 1 }: { radius?: number }) {
       if (earthRef.current) earthRef.current.rotation.y += dt * 0.012
       if (cloudRef.current) cloudRef.current.rotation.y += dt * 0.016
     }
-    // World-space sun direction -> view space for the terminator term.
-    if (shaderRef.current) {
+    const s = shaderRef.current
+    if (s) {
+      // World-space sun direction -> view space for the terminator term.
       sunView.copy(SUN_DIR).transformDirection(camera.matrixWorldInverse)
-      ;(shaderRef.current.uniforms.uSunDirView.value as Vector3).copy(sunView)
+      ;(s.uniforms.uSunDirView.value as Vector3).copy(sunView)
+      if (earthRef.current && cloudRef.current) {
+        s.uniforms.uCloudShift.value =
+          (earthRef.current.rotation.y - cloudRef.current.rotation.y) / (Math.PI * 2)
+      }
     }
   })
 
   return (
     <group>
       <mesh ref={earthRef}>
-        <sphereGeometry args={[radius, 96, 96]} />
+        <sphereGeometry args={[radius, 128, 96]} />
         <meshStandardMaterial
           map={day}
           normalMap={normal}
-          normalScale={new Vector2(0.85, 0.85)}
+          normalScale={new Vector2(0.8, 0.8)}
           emissiveMap={lights}
-          emissive={new Color('#ffd9a0')}
-          emissiveIntensity={2.2}
+          emissive={new Color('#ffcf8a')}
+          emissiveIntensity={2.4}
           metalness={0}
           roughness={1}
           onBeforeCompile={onBeforeCompile}
         />
       </mesh>
-      {/* Cloud shell a clear 2% above the surface (no z-fight with the ground). */}
-      <mesh ref={cloudRef} scale={radius * 1.02}>
-        <sphereGeometry args={[1, 96, 96]} />
-        <meshStandardMaterial map={clouds} transparent opacity={0.38} depthWrite={false} />
+      {/* Cloud shell just above the surface (coverage = the map's alpha). */}
+      <mesh ref={cloudRef} scale={radius * 1.012}>
+        <sphereGeometry args={[1, 128, 96]} />
+        <meshStandardMaterial
+          map={clouds}
+          color="#f2f4f7"
+          transparent
+          opacity={0.92}
+          depthWrite={false}
+          roughness={0.9}
+          metalness={0}
+        />
       </mesh>
     </group>
   )
