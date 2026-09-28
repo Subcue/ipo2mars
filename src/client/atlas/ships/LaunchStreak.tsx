@@ -1,5 +1,5 @@
 /** @jsxImportSource react */
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import {
   AdditiveBlending,
@@ -185,6 +185,11 @@ export function LaunchStreak({ viewDir }: { viewDir: Vector3 }) {
       }),
     [],
   )
+  // Mounted only while the Earth is in focus: free the GPU copies on the way out.
+  useEffect(() => () => {
+    geo.ribbon.dispose()
+    trailMat.dispose()
+  }, [geo, trailMat])
   const tex = useMemo(() => glowTexture(), [])
   const stack = useRef<Sprite>(null)
   const ship = useRef<Sprite>(null)

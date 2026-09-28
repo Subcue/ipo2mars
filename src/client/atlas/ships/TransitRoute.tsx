@@ -1,5 +1,5 @@
 /** @jsxImportSource react */
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { AdditiveBlending, DoubleSide, BufferAttribute, BufferGeometry, ShaderMaterial, Vector2 } from 'three'
 import { TRANSIT_CURVE } from './route'
@@ -108,6 +108,11 @@ export function TransitRoute({ opacity = 1 }: { opacity?: number }) {
       }),
     [],
   )
+  // Mounted only in the overview: free the GPU copies on the way out.
+  useEffect(() => () => {
+    geo.dispose()
+    mat.dispose()
+  }, [geo, mat])
   mat.uniforms.uRes.value.set(size.width / 2, size.height / 2)
   mat.uniforms.uOpacity.value = opacity
   useFrame(({ clock }) => {
