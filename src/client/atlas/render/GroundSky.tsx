@@ -16,6 +16,7 @@ import {
   Scene,
   ShaderMaterial,
   SphereGeometry,
+  UnsignedByteType,
   Vector3,
   WebGLRenderTarget,
   type Camera,
@@ -113,6 +114,7 @@ uniform float uHM;
 uniform float uG;
 uniform float uSunE;
 uniform float uMs;
+uniform float uPacked;
 const float PI = 3.14159265;
 vec2 raySphere(vec3 ro, vec3 rd, float r) {
   float b = dot(ro, rd);
@@ -190,7 +192,8 @@ void main() {
     vec3 viewT = exp(-(uBetaR * odR + extM * odM));
     col += viewT * vec3(0.06, 0.05, 0.035) * uSunE * 0.02 * max(uSun.y, 0.0);
   }
-  gl_FragColor = vec4(col, 1.0);
+  // 8-bit fallback (no float colour buffers): store sqrt(col / 4)
+  gl_FragColor = uPacked > 0.5 ? vec4(sqrt(clamp(col * 0.25, 0.0, 1.0)), 1.0) : vec4(col, 1.0);
 }
 `
 
@@ -213,6 +216,7 @@ uniform vec3 uCloudSun;
 uniform float uDiscR;
 uniform float uFade;
 uniform float uTime;
+uniform float uPacked;
 const float PI = 3.14159265;
 vec3 sky(vec3 d) {
   float az = atan(d.x, -d.z);
@@ -220,7 +224,8 @@ vec3 sky(vec3 d) {
   // (the real horizon dips a degree or so below the celestial one)
   float el = asin(clamp(d.y, 0.004, 1.0));
   float s = sqrt(abs(el) / (0.5 * PI)) * sign(el);
-  return texture2D(uLut, vec2(az / (2.0 * PI) + 0.5, s * 0.5 + 0.5)).rgb;
+  vec3 c = texture2D(uLut, vec2(az / (2.0 * PI) + 0.5, s * 0.5 + 0.5)).rgb;
+  return uPacked > 0.5 ? c * c * 4.0 : c;
 }
 float h12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -284,12 +289,19 @@ void main() {
 
 const cache = new Map<GroundSkyParams, Texture>()
 
+/** Can this GPU render to float colour buffers? If not, the table is baked
+ *  into 8 bits (sqrt-encoded) instead. */
+function floatTargets(gl: WebGLRenderer) {
+  return gl.extensions.has('EXT_color_buffer_float') || gl.extensions.has('EXT_color_buffer_half_float')
+}
+
 /** Integrate the sky once into a 512 x 256 half-float equirect table. */
 export function bakeSkyLut(gl: WebGLRenderer, p: GroundSkyParams): Texture {
   const hit = cache.get(p)
   if (hit) return hit
+  const packed = !floatTargets(gl)
   const rt = new WebGLRenderTarget(512, 256, {
-    type: HalfFloatType,
+    type: packed ? UnsignedByteType : HalfFloatType,
     format: RGBAFormat,
     minFilter: LinearFilter,
     magFilter: LinearFilter,
@@ -309,6 +321,7 @@ export function bakeSkyLut(gl: WebGLRenderer, p: GroundSkyParams): Texture {
       uG: { value: p.g },
       uSunE: { value: p.sun },
       uMs: { value: p.ms },
+      uPacked: { value: packed ? 1 : 0 },
     },
     vertexShader: BAKE_VERT,
     fragmentShader: BAKE_FRAG,
@@ -329,6 +342,7 @@ export function bakeSkyLut(gl: WebGLRenderer, p: GroundSkyParams): Texture {
   quad.geometry.dispose()
   mat.dispose()
   rt.texture.wrapS = RepeatWrapping
+  rt.texture.userData.packed = packed
   cache.set(p, rt.texture)
   return rt.texture
 }
@@ -357,6 +371,7 @@ export function GroundSky({ params, fade }: { params: GroundSkyParams; fade: (ca
         uDiscR: { value: params.discR },
         uFade: { value: 0 },
         uTime: { value: 0 },
+        uPacked: { value: lut.userData.packed ? 1 : 0 },
       },
       vertexShader: DOME_VERT,
       fragmentShader: DOME_FRAG(params.clouds),
