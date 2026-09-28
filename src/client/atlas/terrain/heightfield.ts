@@ -158,7 +158,9 @@ export function heightAt(spec: TerrainSpec, x: number, z: number): number {
     const L2 = bx * bx + bz * bz
     const t = Math.min(1, Math.max(0, ((x - st.x0) * bx + (z - st.z0) * bz) / L2))
     const d = Math.hypot(x - st.x0 - bx * t, z - st.z0 - bz * t)
-    const k = 1 - smooth(Math.min(1, Math.max(0, (d - st.w) / (st.w + 40))))
+    // cut and fill banks lie back at regolith's ~30 degrees however deep
+    const bank = Math.max(st.w + 40, Math.abs(h) * 2.6)
+    const k = 1 - smooth(Math.min(1, Math.max(0, (d - st.w) / bank)))
     h = h * (1 - k)
   }
   for (const p of spec.pits ?? []) {
