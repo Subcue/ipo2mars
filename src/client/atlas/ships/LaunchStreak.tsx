@@ -191,9 +191,13 @@ export function LaunchStreak({ viewDir }: { viewDir: Vector3 }) {
   const booster = useRef<Sprite>(null)
   const padGlow = useRef<Sprite>(null)
   const col = useMemo(() => ({ hot: new Color('#ffd9a8'), blue: new Color('#dfe7ff') }), [])
+  // The loop runs from mount (the Earth focus), timed so ignition comes just
+  // as the camera settles rather than at a random phase.
+  const born = useRef<number | null>(null)
 
   useFrame(({ clock }) => {
-    const t = STILL ? 14 : clock.elapsedTime % LOOP
+    if (born.current === null) born.current = clock.elapsedTime
+    const t = STILL ? 14 : (clock.elapsedTime - born.current + LOOP - 2.2) % LOOP
     const { shipPath, boosterPath, pad, stageU } = geo
     const s = stack.current
     const sh = ship.current

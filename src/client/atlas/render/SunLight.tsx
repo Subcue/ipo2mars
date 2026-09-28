@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { Object3D, Vector3, type DirectionalLight } from 'three'
 import { SUN_DIR } from '../../scene/sunlight'
 import { QUALITY } from '../quality'
+import { anchors } from '../stage'
 
 export interface ShadowFocus {
   /** World point the shadow frustum is centred on (read every frame). */
@@ -62,9 +63,10 @@ export function SunLight({ focus }: { focus: ShadowFocus | null }) {
     const l = light.current
     if (!l) return
     since.current += 1
-    if (focus && (focus.dynamic || since.current < 240 || since.current % 30 === 0)) {
+    if (focus && (focus.dynamic || anchors.shadowsDirty || since.current < 240 || since.current % 30 === 0)) {
       gl.shadowMap.needsUpdate = true
     }
+    anchors.shadowsDirty = false
     if (focus) {
       const c = focus.center()
       target.current.position.copy(c)
