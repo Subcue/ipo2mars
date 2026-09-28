@@ -55,8 +55,28 @@ export interface Zone {
   r: number
 }
 
+/** An open-pit mine: terraced benches down to a flat floor. */
+export interface Pit {
+  x: number
+  z: number
+  r: number
+  depth: number
+}
+
+/** A long graded strip that follows the planet's curve (a mass driver's
+ *  bed), unlike the flats, which are levelled onto the tangent plane. */
+export interface Strip {
+  x0: number
+  z0: number
+  x1: number
+  z1: number
+  w: number
+}
+
 export interface TerrainSpec {
   kind: 'mars' | 'moon'
+  pits?: Pit[]
+  strips?: Strip[]
   /** Patch radius, metres. */
   extent: number
   /** Graded (flat) zones: the base core, pads, roads. */
@@ -131,6 +151,27 @@ export function heightAt(spec: TerrainSpec, x: number, z: number): number {
   // grade the base onto a true plane (y = 0): structures are built flat
   const flat = flatAt(spec, x, z)
   h = h * (1 - flat) + flat * (x * x + z * z) * spec.curve
+  // strips: graded onto the sphere itself (their structures bend with it)
+  for (const st of spec.strips ?? []) {
+    const bx = st.x1 - st.x0
+    const bz = st.z1 - st.z0
+    const L2 = bx * bx + bz * bz
+    const t = Math.min(1, Math.max(0, ((x - st.x0) * bx + (z - st.z0) * bz) / L2))
+    const d = Math.hypot(x - st.x0 - bx * t, z - st.z0 - bz * t)
+    const k = 1 - smooth(Math.min(1, Math.max(0, (d - st.w) / (st.w + 40))))
+    h = h * (1 - k)
+  }
+  for (const p of spec.pits ?? []) {
+    const d = Math.hypot(x - p.x, z - p.z) / p.r
+    if (d >= 1.25) continue
+    // four benches: steps in depth with short ramps between them
+    const t = Math.min(1, Math.max(0, (1.1 - d) / 1.1))
+    const steps = 4
+    const k = t * steps
+    const bench = (Math.floor(k) + smooth(Math.min(1, (k - Math.floor(k)) / 0.35))) / steps
+    const rim = d < 1.25 ? Math.max(0, 1 - Math.abs(d - 1.1) / 0.15) * 1.5 : 0
+    h += rim - p.depth * Math.min(1, bench)
+  }
   // fade all relief out toward the patch edge so it meets the sphere
   const e = dc / spec.extent
   h *= 1 - smooth(Math.min(1, Math.max(0, (e - 0.72) / 0.28)))

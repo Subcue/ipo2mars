@@ -6,6 +6,7 @@ import {
   RepeatWrapping,
   TextureLoader,
   Vector2,
+  Vector4,
   type Object3D,
   type Texture,
   type WebGLProgramParametersWithUniforms,
@@ -35,6 +36,18 @@ export interface ModelContext {
   regolith?: Color
   /** Tint multiplied into the landing-pad texture. */
   padTint?: Color
+  /** Live dust amount (overrides `dust`), e.g. soot on a flown booster. */
+  dustU?: { value: number }
+  /** Live frost on cryogenic tanks (0..1) and the object-space height bands
+   *  (metres, [from, to] pairs) where the propellant sits. */
+  frost?: { value: number }
+  frostBands?: [number, number, number, number]
+  /** Live aerial perspective (display-space colour, per stage unit). */
+  haze?: { k: { value: number }; color: Color }
+  /** Bend the model onto the planet: object-space y drops by
+   *  (x^2 + z^2) * curve (1 / 2R, metres), so kilometre-scale sites sit on
+   *  the curved ground instead of a tangent plane. */
+  curve?: number
 }
 
 let hullNormalCache: Texture | null = null
@@ -71,6 +84,20 @@ const SEAMS_GLSL = /* glsl */ `
 }
 `
 
+const FROST_GLSL = /* glsl */ `
+if (uFrost > 0.0) {
+  // frost over the cryogenic tanks: patchy, streaking down the hull
+  float fy = vObjPos.y;
+  float band = smoothstep(uFrostBands.x, uFrostBands.x + 1.2, fy) * (1.0 - smoothstep(uFrostBands.y - 1.2, uFrostBands.y, fy))
+             + 0.8 * smoothstep(uFrostBands.z, uFrostBands.z + 1.2, fy) * (1.0 - smoothstep(uFrostBands.w - 1.2, uFrostBands.w, fy));
+  float n = vnoise(vObjPos * vec3(1.1, 0.16, 1.1)) * 0.65 + vnoise(vObjPos * vec3(4.3, 0.9, 4.3) + 7.0) * 0.35;
+  float f = uFrost * band * smoothstep(0.34, 0.58, n);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.8, 0.83, 0.86), f);
+  roughnessFactor = mix(roughnessFactor, 0.75, f);
+  metalnessFactor = mix(metalnessFactor, 0.0, f);
+}
+`
+
 const DUST_GLSL = /* glsl */ `
 if (uDust > 0.0) {
   vec3 on = normalize(vObjN);
@@ -87,21 +114,36 @@ if (uDust > 0.0) {
 interface Extra {
   seams?: boolean
   glow?: boolean
+  frost?: boolean
 }
 
 function inject(m: MeshStandardMaterial, ctx: ModelContext, extra: Extra) {
   const dustColor = ctx.dustColor ?? new Color('#9a6a4a')
   const uniforms = {
-    uDust: { value: ctx.dust ?? 0 },
+    uDust: ctx.dustU ?? { value: ctx.dust ?? 0 },
     uDustColor: { value: dustColor },
     uDustH: { value: ctx.dustHeight ?? 4 },
     uEngineGlow: ctx.engineGlow ?? { value: 0 },
+    uFrost: ctx.frost ?? { value: 0 },
+    uFrostBands: { value: new Vector4(...(ctx.frostBands ?? [0, 0, 0, 0])) },
+    uHazeK: ctx.haze?.k ?? { value: 0 },
+    uHazeColor: { value: ctx.haze?.color ?? new Color(0, 0, 0) },
+    uCurve: { value: ctx.curve ?? 0 },
   }
+  const frost = !!(extra.frost && ctx.frost)
+  const haze = !!ctx.haze
+  const curve = !!ctx.curve
   m.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
     Object.assign(shader.uniforms, uniforms)
     shader.vertexShader = shader.vertexShader
-      .replace('void main() {', 'varying vec3 vObjPos;\nvarying vec3 vObjN;\nvoid main() {')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvObjPos = position;\nvObjN = normal;')
+      .replace('void main() {', 'varying vec3 vObjPos;\nvarying vec3 vObjN;\nuniform float uCurve;\nvoid main() {')
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+vObjPos = position;
+vObjN = normal;
+${curve ? 'transformed.y -= dot(transformed.xz, transformed.xz) * uCurve;' : ''}`,
+      )
     let frag = shader.fragmentShader.replace(
       'void main() {',
       `varying vec3 vObjPos;
@@ -110,6 +152,10 @@ uniform float uDust;
 uniform vec3 uDustColor;
 uniform float uDustH;
 uniform float uEngineGlow;
+uniform float uFrost;
+uniform vec4 uFrostBands;
+uniform float uHazeK;
+uniform vec3 uHazeColor;
 ${NOISE}
 void main() {`,
     )
@@ -117,8 +163,15 @@ void main() {`,
       '#include <metalnessmap_fragment>',
       `#include <metalnessmap_fragment>
 ${extra.seams ? SEAMS_GLSL : ''}
+${frost ? FROST_GLSL : ''}
 ${DUST_GLSL}`,
     )
+    if (haze) {
+      frag = frag.replace(
+        '#include <fog_fragment>',
+        `if (uHazeK > 0.0) gl_FragColor.rgb = mix(gl_FragColor.rgb, uHazeColor, 1.0 - exp(-length(vViewPosition) * uHazeK));`,
+      )
+    }
     if (extra.glow) {
       frag = frag.replace(
         '#include <emissivemap_fragment>',
@@ -129,7 +182,8 @@ totalEmissiveRadiance += vec3(1.0, 0.52, 0.24) * uEngineGlow * (0.15 + 1.6 * smo
     shader.fragmentShader = frag
   }
   // Distinct program per feature set (onBeforeCompile bodies differ).
-  m.customProgramCacheKey = () => `atlas-${extra.seams ? 's' : ''}${extra.glow ? 'g' : ''}`
+  m.customProgramCacheKey = () =>
+    `atlas-${extra.seams ? 's' : ''}${extra.glow ? 'g' : ''}${frost ? 'f' : ''}${haze ? 'h' : ''}${curve ? 'c' : ''}`
 }
 
 function build(name: string, src: MeshStandardMaterial, ctx: ModelContext): MeshStandardMaterial {
@@ -146,6 +200,7 @@ function build(name: string, src: MeshStandardMaterial, ctx: ModelContext): Mesh
       m.normalScale = new Vector2(0.22, 0.22)
       m.envMapIntensity = envI * 1.15
       extra.seams = true
+      extra.frost = true
       break
     }
     case name === 'tiles': {
@@ -281,6 +336,66 @@ function build(name: string, src: MeshStandardMaterial, ctx: ModelContext): Mesh
     case name === 'crate': {
       m.color.setRGB(0.7, 0.36, 0.12)
       m.roughness = 0.6
+      break
+    }
+    case name === 'girder': {
+      // weathered structural steel: the towers, arms and mounts
+      m.color.setRGB(0.44, 0.44, 0.43)
+      m.metalness = 0.55
+      m.roughness = 0.62
+      break
+    }
+    case name === 'grating': {
+      m.color.setRGB(0.17, 0.17, 0.18)
+      m.metalness = 0.6
+      m.roughness = 0.7
+      break
+    }
+    case name === 'concrete': {
+      m.color.setRGB(0.52, 0.51, 0.48)
+      m.roughness = 0.92
+      m.envMapIntensity = envI * 0.6
+      break
+    }
+    case name === 'flame-plate': {
+      m.color.setRGB(0.22, 0.21, 0.2)
+      m.metalness = 0.7
+      m.roughness = 0.55
+      break
+    }
+    case name === 'cladding': {
+      m.color.setRGB(0.76, 0.77, 0.78)
+      m.roughness = 0.5
+      break
+    }
+    case name === 'soot': {
+      m.color.setRGB(0.07, 0.065, 0.06)
+      m.metalness = 0.3
+      m.roughness = 0.85
+      break
+    }
+    case name === 'grid': {
+      m.color.setRGB(0.24, 0.24, 0.26)
+      m.metalness = 0.8
+      m.roughness = 0.5
+      break
+    }
+    case name === 'lawn': {
+      m.color.setRGB(0.12, 0.26, 0.07)
+      m.roughness = 0.9
+      m.emissive.setRGB(0.02, 0.05, 0.015)
+      break
+    }
+    case name === 'tree': {
+      m.color.setRGB(0.06, 0.16, 0.05)
+      m.roughness = 0.85
+      m.emissive.setRGB(0.01, 0.03, 0.01)
+      break
+    }
+    case name === 'pool': {
+      m.color.setRGB(0.02, 0.07, 0.1)
+      m.roughness = 0.06
+      m.envMapIntensity = envI * 1.3
       break
     }
     case name === 'tire' || name === 'dark': {

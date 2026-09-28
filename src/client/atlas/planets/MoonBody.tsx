@@ -25,10 +25,12 @@ export function MoonBody({
   onClick,
   onHover,
   paused = false,
+  loadBase = true,
 }: {
   onClick?: () => void
   onHover?: (hovering: boolean) => void
   paused?: boolean
+  loadBase?: boolean
 }) {
   const tex = useLoader(TextureLoader, '/textures/moon.jpg')
   tex.colorSpace = SRGBColorSpace
@@ -72,7 +74,7 @@ export function MoonBody({
           <sphereGeometry args={[R, 160, 120]} />
         </mesh>
         <group ref={base} position={[0, R, 0]}>
-          <MoonBase map={tex} baseToPlanet={BASE_TO_PLANET} />
+          <MoonBase load={loadBase} map={tex} baseToPlanet={BASE_TO_PLANET} />
         </group>
       </group>
     </group>

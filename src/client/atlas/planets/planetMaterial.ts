@@ -11,6 +11,8 @@ import {
 } from 'three'
 import { SURFACE_GLSL, type SurfaceLook } from './surfaceGlsl'
 
+const MAX_TRACKS = 20
+
 export interface PlanetUniforms {
   uR: { value: number }
   uLookA: { value: Vector4 }
@@ -60,8 +62,8 @@ export function makePlanetMaterial({ map, radius, look, octaves, patch }: Opts) 
     uBaseToPlanet: { value: new Matrix4() },
     uPlanetToObj: { value: new Matrix3() },
   }
-  const tracks = (patch?.tracks ?? []).slice(0, 12)
-  const trackU = { value: Array.from({ length: 12 }, (_, i) => new Vector4(...(tracks[i] ?? [0, 0, 0, 0]))) }
+  const tracks = (patch?.tracks ?? []).slice(0, MAX_TRACKS)
+  const trackU = { value: Array.from({ length: MAX_TRACKS }, (_, i) => new Vector4(...(tracks[i] ?? [0, 0, 0, 0]))) }
   const m = new MeshStandardMaterial({ map, roughness: 1, metalness: 0 })
   m.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
     Object.assign(shader.uniforms, uniforms)
@@ -110,7 +112,7 @@ uniform float uHazeK;
 varying vec3 vP2V0;
 varying vec3 vP2V1;
 varying vec3 vP2V2;
-${patch ? 'varying float vFlat;\nvarying vec3 vBase;\nuniform vec4 uTracks[12];\nuniform sampler2D uDetail;\nuniform mat4 uBaseToPlanet;' : 'const float vFlat = 0.0;'}
+${patch ? `varying float vFlat;\nvarying vec3 vBase;\nuniform vec4 uTracks[${MAX_TRACKS}];\nuniform sampler2D uDetail;\nuniform mat4 uBaseToPlanet;` : 'const float vFlat = 0.0;'}
 ${SURFACE_GLSL}
 void main() {
   vec3 pdir = normalize(vPlanetPos);
@@ -155,7 +157,7 @@ diffuseColor.rgb *= clamp(1.0 + sdAlb * uLookA.w, 0.45, 1.6);
   vec2 q = vBase.xz;
   float aa = clamp(1.6 - fwidth(q.x) * 2.2, 0.0, 1.0);
   float tr = 0.0;
-  for (int i = 0; i < 12; i++) {
+  for (int i = 0; i < ${MAX_TRACKS}; i++) {
     vec4 t = uTracks[i];
     vec2 ba = t.zw - t.xy;
     float L2 = dot(ba, ba);

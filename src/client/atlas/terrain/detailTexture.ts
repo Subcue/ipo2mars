@@ -48,12 +48,13 @@ export function groundDetail(kind: 'moon' | 'mars'): DataTexture {
   const rnd = lcg(kind === 'moon' ? 91 : 57)
   const h = new Float32Array(N * N) // height, in tile units
   const rim = new Float32Array(N * N)
-  const craters = kind === 'moon' ? 150 : 55
+  // Mars: few craters, old and softened; the Moon is saturated with them
+  const craters = kind === 'moon' ? 150 : 16
   for (let i = 0; i < craters; i++) {
     const cx = rnd()
     const cy = rnd()
     const r = 0.012 * Math.pow(0.11 / 0.012, Math.pow(rnd(), 2.4))
-    const fresh = (kind === 'moon' ? 0.35 : 0.2) + 0.65 * Math.pow(rnd(), 1.5)
+    const fresh = kind === 'moon' ? 0.35 + 0.65 * Math.pow(rnd(), 1.5) : 0.08 + 0.35 * Math.pow(rnd(), 1.5)
     const reach = r * 1.9
     const x0 = Math.floor((cx - reach) * N)
     const x1 = Math.ceil((cx + reach) * N)
@@ -70,6 +71,21 @@ export function groundDetail(kind: 'moon' | 'mars'): DataTexture {
         const k = (((y % N) + N) % N) * N + (((x % N) + N) % N)
         h[k] += r * (bowl + 0.11 * e) * fresh
         rim[k] += (Math.exp(-(((d - 1.05) / 0.28) ** 2)) - (d < 1 ? (1 - d * d) * 0.35 : 0)) * fresh
+      }
+    }
+  }
+  if (kind === 'mars') {
+    // wind-sculpted sand: ripple trains across the tile, bunched into
+    // patches (a periodic mask), and drifts in the lee of rough ground
+    const mask = new Float32Array(N * N)
+    periodicNoise(mask, rnd, 5, 1)
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const k = y * N + x
+        const ph = ((x * 3 + y) / N) * 26 + mask[k] * 3
+        const rip = Math.pow(Math.abs(Math.sin(ph * Math.PI)), 1.6)
+        h[k] += rip * 0.0035 * Math.max(0, mask[k] + 0.15)
+        rim[k] -= Math.max(0, mask[k]) * 0.25
       }
     }
   }

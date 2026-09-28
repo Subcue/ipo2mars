@@ -17,7 +17,7 @@ import { SUN_DIR } from '../../scene/sunlight'
 // a black sky, in deep space a dim planet-glow "softbox". Applied PER
 // MATERIAL to the vehicles and bases only (never scene.environment), so the
 // planets' night sides stay truly dark.
-export type EnvKind = 'space' | 'mars' | 'moon'
+export type EnvKind = 'space' | 'mars' | 'moon' | 'earth' | 'orbit'
 
 const VERT = /* glsl */ `
 varying vec3 vDir;
@@ -65,6 +65,42 @@ void main() {
   vec3 ground = vec3(0.3, 0.15, 0.075) * lit;
   vec3 col = h >= 0.0 ? sky : mix(horizon * 0.62, ground, smoothstep(0.0, 0.18, -h));
   gl_FragColor = vec4(col * 0.9, 1.0);
+}
+`,
+  orbit: /* glsl */ `
+${COMMON}
+void main() {
+  // low orbit: the bright Earth fills everything below the dipped horizon,
+  // a thin blue limb, black space above, the sun
+  vec3 d = normalize(vDir);
+  float dip = -0.36;
+  float earth = 1.0 - smoothstep(dip - 0.02, dip + 0.01, d.y);
+  float sunSide = 0.55 + 0.45 * dot(normalize(vec3(d.x, 0.0, d.z) + 1e-5), normalize(vec3(uSun.x, 0.0, uSun.z)));
+  vec3 ground = mix(vec3(0.05, 0.1, 0.18), vec3(0.3, 0.36, 0.42), smoothstep(-0.95, -0.4, d.y)) * sunSide;
+  vec3 col = vec3(0.001);
+  col = mix(col, ground, earth);
+  col += vec3(0.25, 0.45, 0.9) * exp(-pow((d.y - dip - 0.01) / 0.025, 2.0)) * sunSide * 0.6;
+  col += vec3(1.0, 0.96, 0.9) * sunGlow(d, 400.0) * 40.0;
+  gl_FragColor = vec4(col, 1.0);
+}
+`,
+  earth: /* glsl */ `
+${COMMON}
+void main() {
+  vec3 d = normalize(vDir);
+  float h = d.y;
+  // morning sky over the Gulf: deep blue overhead, pale and hazy at the
+  // horizon, brighter toward the sun; sand and scrub below
+  vec3 horizon = vec3(0.62, 0.7, 0.8);
+  vec3 zenith = vec3(0.11, 0.24, 0.52);
+  vec3 sky = mix(horizon, zenith, pow(clamp(h, 0.0, 1.0), 0.5));
+  sky += vec3(1.0, 0.9, 0.75) * sunGlow(d, 8.0) * 0.55 + vec3(1.0, 0.95, 0.85) * sunGlow(d, 300.0) * 6.0;
+  vec3 flatSun = normalize(vec3(uSun.x, 0.0, uSun.z));
+  vec3 flatD = normalize(vec3(d.x, 0.0, d.z) + 1e-5);
+  float lit = 0.75 + 0.25 * (-dot(flatD, flatSun));
+  vec3 ground = vec3(0.32, 0.28, 0.2) * lit;
+  vec3 col = h >= 0.0 ? sky : mix(horizon * 0.7, ground, smoothstep(0.0, 0.2, -h));
+  gl_FragColor = vec4(col, 1.0);
 }
 `,
   moon: /* glsl */ `

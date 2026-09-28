@@ -29,6 +29,11 @@ export const MODELS = {
   hls: '/models/hls.glb',
   marsbase: '/models/marsbase.glb',
   moonbase: '/models/moonbase.glb',
+  starbase: '/models/starbase.glb',
+  mechazilla: '/models/mechazilla.glb',
+  booster: '/models/booster.glb',
+  depot: '/models/depot.glb',
+  massdriver: '/models/massdriver.glb',
 } as const
 
 // The transit Starship is on screen from the first frame; the surface assets

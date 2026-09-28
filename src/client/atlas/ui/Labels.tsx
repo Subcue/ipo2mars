@@ -52,9 +52,9 @@ export function OverviewLabels({ visible, onSelect }: { visible: boolean; onSele
   return (
     <>
       <Label at={() => EARTH_POS} lift={1.45} title="Earth" sub="Live Starlink constellation" visible={visible} onSelect={() => onSelect('earth')} />
-      <Label at={() => anchors.moon} lift={MOON_RADIUS * 1.15} title="Moon" sub="Artemis outpost" visible={visible} onSelect={() => onSelect('moon')} />
-      <Label at={() => MARS_POS} lift={MARS_RADIUS * 1.3} title="Mars" sub="Settlement, 3 ships landed" visible={visible} onSelect={() => onSelect('mars')} side="left" />
-      <Label at={() => anchors.ship} lift={0.25} title="Starship" sub="In transit" visible={visible} onSelect={() => onSelect('ship')} />
+      <Label at={() => anchors.moon} lift={MOON_RADIUS * 1.15} title="Moon" sub="Lunar outpost" visible={visible} onSelect={() => onSelect('moon')} />
+      <Label at={() => MARS_POS} lift={MARS_RADIUS * 1.3} title="Mars" sub="City and starport" visible={visible} onSelect={() => onSelect('mars')} side="left" />
+      <Label at={() => anchors.ship} lift={0.25} title="Starships" sub="The fleet, in transit" visible={visible} onSelect={() => onSelect('ship')} />
     </>
   )
 }

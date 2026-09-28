@@ -95,7 +95,7 @@ const PAGES: PageDef[] = [
     path: '/atlas',
     title: 'The atlas: fly Earth, the Moon, and Mars in 3D · ipo2mars',
     description:
-      'An interactive 3D stage: Earth in the live Starlink constellation, the Moon and Mars with their future bases, and Starships in flight. Select a destination and fly there.',
+      'An interactive 3D stage: a Starship launch and tower catch at Starbase, refueling in orbit, the live Starlink constellation, an outpost on the Moon, a city on Mars, and the fleet in between.',
     body: () => <Atlas />,
     atlas: true,
   },

@@ -8,9 +8,11 @@ export const Atlas: FC = () => (
   <section class="atlas-fallback pointer-events-auto fixed inset-x-0 bottom-0 z-10 mx-auto max-w-2xl px-6 pb-8 text-center">
     <h1 class="sr-only">The ipo2mars atlas: an interactive 3D map of SpaceX's future</h1>
     <p class="text-sm leading-relaxed text-white/55">
-      An interactive 3D stage: Earth wrapped in the live Starlink constellation,
-      the Moon and Mars with their future bases, and Starships in flight.
-      Select a destination and the camera flies there.
+      An interactive 3D stage: a Starship launch at Starbase and the tower
+      catching the booster, tankers refueling a depot in low Earth orbit, Earth
+      in the live Starlink constellation, an outpost on the Moon, a city on
+      Mars, and the fleet flying between them. Select a destination and the
+      camera flies there, or play the mission from launch to Mars.
     </p>
     <p class="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm">
       <a href="/starlink" class="text-accent hover:underline">Starlink</a>

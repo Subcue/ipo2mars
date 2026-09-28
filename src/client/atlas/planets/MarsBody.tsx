@@ -7,6 +7,7 @@ import { MARS_LOOK } from './surfaceGlsl'
 import { MarsBase, MARS_TERRAIN } from '../bases/MarsBase'
 import { anchors, BASE_SCALE, MARS_POS, MARS_RADIUS, MARS_TILT } from '../stage'
 import { QUALITY } from '../quality'
+import { GroundSky, groundFade, MARS_SKY } from '../render/GroundSky'
 
 const R = MARS_RADIUS
 // The base sits where the tilted body's surface normal is world +Y, so its
@@ -18,8 +19,10 @@ const BASE_QUAT = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), BASE
 const BASE_TO_PLANET = new Matrix4().compose(BASE_POS, BASE_QUAT, new Vector3(1, 1, 1))
 const PATCH_COS = Math.cos(((MARS_TERRAIN.extent * BASE_SCALE) / R) * 0.975)
 // Low-altitude aerial haze (display space), matched to the sky's horizon.
-const HAZE = new Color('#b98a6c')
+const HAZE = new Color('#c4a283')
 const HAZE_K = 7
+/** Live aerial haze at the settlement (ridge, structures read it too). */
+export const MARS_HAZE = { color: HAZE, k: 0 }
 
 // Texture: Solar System Scope 2k Mars (CC BY 4.0), credited in the README.
 // No spin: the settlement's pose is fixed so its sun angle is always the
@@ -27,9 +30,11 @@ const HAZE_K = 7
 export function MarsBody({
   onClick,
   onHover,
+  loadBase = true,
 }: {
   onClick?: () => void
   onHover?: (hovering: boolean) => void
+  loadBase?: boolean
 }) {
   const tex = useLoader(TextureLoader, '/textures/mars.jpg')
   tex.colorSpace = SRGBColorSpace
@@ -58,6 +63,7 @@ export function MarsBody({
     if (sphere.current) sphere.current.visible = dBase > 0.07
     const alt = camera.position.distanceTo(tmp.copy(MARS_POS)) - R
     const k = HAZE_K * (1 - smoothstep(0.02, 0.3, alt))
+    MARS_HAZE.k = k
     for (const u of [uniforms, patchU.current]) {
       if (!u) continue
       u.uHazeK.value = k
@@ -66,6 +72,8 @@ export function MarsBody({
   }, -3)
 
   return (
+    <>
+    <GroundSky params={MARS_SKY} fade={(cam) => groundFade(MARS_POS, R, cam.position, 0.004, 0.035, 'mars')} />
     <group position={MARS_POS} rotation={[MARS_TILT, 0, 0]}>
       <mesh
         ref={sphere}
@@ -78,9 +86,10 @@ export function MarsBody({
       </mesh>
       {/* A sibling, not a child: the sphere can hide without taking the base. */}
       <group ref={base} position={BASE_POS} quaternion={BASE_QUAT}>
-        <MarsBase map={tex} baseToPlanet={BASE_TO_PLANET} onPatchUniforms={(u) => (patchU.current = u)} />
+        <MarsBase load={loadBase} map={tex} baseToPlanet={BASE_TO_PLANET} onPatchUniforms={(u) => (patchU.current = u)} />
       </group>
     </group>
+    </>
   )
 }
 
