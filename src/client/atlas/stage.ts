@@ -51,4 +51,7 @@ export const anchors = {
   /** Set once each moving thing has written a live anchor; the camera waits
    *  on these before its first placement (bodies load async via Suspense). */
   ready: { moon: false, mars: false, ship: false },
+  /** Something that casts shadows moved this frame (static shadow maps
+   *  otherwise refresh only now and then; see SunLight). */
+  shadowsDirty: false,
 }

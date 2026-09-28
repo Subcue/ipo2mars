@@ -9,6 +9,7 @@ import { MARS_LOOK } from '../planets/surfaceGlsl'
 import type { PlanetUniforms } from '../planets/planetMaterial'
 import { LandedStarship } from '../ships/Starship'
 import { Structures } from './Structures'
+import { MarsLanding } from './MarsLanding'
 import { useEnv } from '../render/useModel'
 import { BASE_SCALE, MARS_RADIUS } from '../stage'
 
@@ -65,6 +66,7 @@ export function MarsBase({
               <LandedStarship />
             </group>
           ))}
+          <MarsLanding />
         </Suspense>
       </group>
     </group>

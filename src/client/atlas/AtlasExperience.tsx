@@ -16,6 +16,7 @@ import { MARS_POS, MARS_RADIUS, view } from './stage'
 import { DESTINATIONS, EARTH_VIEW, isDestKey, type DestKey } from './flight'
 import { FlightDirector } from './FlightDirector'
 import { Sky } from './render/Sky'
+import { SunGlare } from './render/SunGlare'
 import { SunLight, type ShadowFocus } from './render/SunLight'
 import { QUALITY } from './quality'
 import { Dock } from './ui/Dock'
@@ -138,6 +139,7 @@ export function AtlasExperience() {
           lightSteps={QUALITY.atmoLightSteps}
         />
 
+        <SunGlare />
         <FlightDirector focus={focus} reduced={reduced} ready={ready} />
       </Canvas>
 

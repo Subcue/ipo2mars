@@ -38,12 +38,14 @@ const page = await ctx.newPage()
 
 console.log('[record] loading atlas (textures + TLE warmup)...')
 await page.goto(`${BASE}/atlas`, { waitUntil: 'networkidle', timeout: 60000 })
-const sceneStart = Date.now() // ~= the scene clock's zero (canvas mounts on load)
-await sleep(6000)
+await sleep(6000) // loading veil + the establishing fly-in
 
+// Dock buttons by exact accessible name (the overview map labels also say
+// "Mars", "Moon"... but carry a caption, so they never match exactly).
+const dock = (label) => page.getByRole('button', { name: label, exact: true })
 const fly = async (label, holdMs) => {
   console.log(`[record] -> ${label}`)
-  await page.click(`text=${label}`)
+  await dock(label).click()
   await sleep(holdMs)
 }
 
@@ -51,17 +53,13 @@ const fly = async (label, holdMs) => {
 await sleep(3000)
 
 // Shot 2-4: the grand tour.
-await fly('MARS', 6500)
-await fly('MOON', 6000)
-await fly('SHIP', 7000)
+await fly('Mars', 9000) // the Mars focus starts a landing as the camera arrives
+await fly('Moon', 6000)
+await fly('Ship', 7000)
 
-// Shot 5: Earth, timed so we catch liftoff -> staging -> booster landing.
-// The launch loop is 26s: liftoff at t=3, booster down at t=18.5 (scene time).
-console.log('[record] -> EARTH (waiting for a launch window)')
-await page.click('text=EARTH')
-const sceneT = () => ((Date.now() - sceneStart) / 1000) % 26
-while (!(sceneT() > 0.8 && sceneT() < 2.2)) await sleep(150) // arrive just before liftoff
-await sleep(17500) // full cycle: ascent, separation, flame landing
+// Shot 5: Earth. The launch loop restarts when the Earth view opens:
+// ignition ~3s after arrival, then staging, boostback and the landing burn.
+await fly('Earth', 25000)
 
 // Shot 6: the Mars settlement simulator (same tab keeps one video file).
 console.log('[record] -> simulator')

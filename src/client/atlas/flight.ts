@@ -81,7 +81,7 @@ export const DESTINATIONS: Record<DestKey, Destination> = {
   earth: {
     label: 'Earth',
     target: () => EARTH_POS.clone(),
-    cameraPos: () => EARTH_VIEW.clone().multiplyScalar(3.2 * fit()),
+    cameraPos: () => EARTH_VIEW.clone().multiplyScalar(3.6 * fit()),
     minDistance: 1.25,
     maxDistance: 14,
     drift: 0.008,
