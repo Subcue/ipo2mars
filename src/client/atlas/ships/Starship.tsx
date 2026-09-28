@@ -1,38 +1,63 @@
 /** @jsxImportSource react */
-import { useModel } from '../useModel'
+import { useMemo } from 'react'
+import { Color } from 'three'
+import { MODELS, useEnv, useModel } from '../render/useModel'
+import type { ModelContext } from '../render/materials'
 import { Plume } from './Plume'
 
 // Blender-built stylized vehicles (original designs, not official models).
-// Source of truth: tools/blender/build_assets.py -> public/models/*.glb.
-// Both models are unit-height along +Y with the tail at y=0; `length` scales.
+// Source of truth: tools/blender/build_assets.py -> public/models/*.glb, all
+// in metres with the tail (or footpads) at y=0.
+export const SHIP_HEIGHT_M = 52
+const TAIL_Y = 0.05
 
-export function Starship({ length = 0.3, engine = false }: { length?: number; engine?: boolean }) {
-  const model = useModel('/models/starship.glb')
+// Vacuum Raptor exits (model metres, three.js axes: Blender (x, y) -> (x, -y)).
+const RVAC = [90, 210, 330].map((deg) => {
+  const a = (deg * Math.PI) / 180
+  return [3.02 * Math.cos(a), TAIL_Y, -3.02 * Math.sin(a)] as const
+})
+
+/** Flight Starship. `length` in stage units; `firing` 0..1 drives the
+ *  vacuum plumes and the glow inside the bells. */
+export function Starship({ length, firing = 0 }: { length: number; firing?: number }) {
+  const env = useEnv('space')
+  const engineGlow = useMemo(() => ({ value: firing }), [])
+  engineGlow.value = firing
+  const ctx = useMemo<ModelContext>(() => ({ env, engineGlow, envIntensity: 1 }), [env, engineGlow])
+  const model = useModel(MODELS.starship, ctx)
   return (
-    <group scale={length}>
+    <group scale={length / SHIP_HEIGHT_M}>
       <primitive object={model} />
-      {/* Vacuum Raptor plume firing from the engine bells at the tail. */}
-      {engine ? (
-        <group position={[0, 0.012, 0]}>
-          <Plume scale={0.13} />
-        </group>
-      ) : null}
+      {firing > 0
+        ? RVAC.map((p, i) => (
+            <group key={i} position={p as unknown as [number, number, number]}>
+              <Plume length={30} width={10} intensity={0.13 * firing} halo={3.2} core="#fbf6ff" outer="#a9a2ff" />
+            </group>
+          ))
+        : null}
     </group>
   )
 }
 
-export function Booster({ length = 0.34 }: { length?: number }) {
-  const model = useModel('/models/booster.glb')
-  return (
-    <group scale={length}>
-      <primitive object={model} />
-    </group>
+/** Landed Starship for the Mars settlement: legs, crew windows, dusty.
+ *  Model metres; the parent group applies BASE_SCALE. */
+export function LandedStarship() {
+  const env = useEnv('mars')
+  const ctx = useMemo<ModelContext>(
+    () => ({ env, dust: 0.85, dustColor: new Color('#a4693f'), dustHeight: 7, envIntensity: 1 }),
+    [env],
   )
+  const model = useModel(MODELS.lander, ctx)
+  return <primitive object={model} />
 }
 
-// Atmospheric launch / landing flame, pointing down -Y from y=0. Built on the
-// same additive Plume so it matches the engine look; warmer and tighter than
-// the vacuum plume. Procedural on purpose: it pulses every frame.
-export function Flame({ size = 0.1, intensity = 1 }: { size?: number; intensity?: number }) {
-  return <Plume scale={size} intensity={intensity} vacuum={false} core="#fff1cf" outer="#ff7a2e" />
+/** Lunar lander variant for the Moon base: grey regolith dust. */
+export function LunarLander() {
+  const env = useEnv('moon')
+  const ctx = useMemo<ModelContext>(
+    () => ({ env, dust: 0.55, dustColor: new Color('#8d8b88'), dustHeight: 6, envIntensity: 1 }),
+    [env],
+  )
+  const model = useModel(MODELS.hls, ctx)
+  return <primitive object={model} />
 }

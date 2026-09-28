@@ -14,7 +14,10 @@ An open-source, interactive 3D atlas of SpaceX — from reusable rockets and the
 
 ## What's inside
 
-- 🧭 **The atlas (`/atlas`)** — a full-screen interactive stage: click Earth, the Moon, Mars, or the Starship in transit and the camera flies there. Real sun lighting with a day/night terminator and city lights, normal-mapped terrain, stylized bases on the Moon and Mars, a launch-and-booster-recovery loop at Earth, and shareable deep links (`/atlas?focus=mars`).
+- 🧭 **The atlas (`/atlas`)** — a full-screen interactive stage: click Earth, the Moon, Mars, or a Starship in transit and the camera flies there (zoom out, travel, zoom in), with shareable deep links (`/atlas?focus=mars`).
+  - **Earth** with physically based atmospheric scattering (blue limb, orange terminator), ocean sun glint, cloud shadows, city lights on the night side, the live Starlink shell (sunlit satellites glint, the rest dim in Earth's shadow) and a real-scale launch: an ascent streak whose plume widens and catches the sun, staging, a boostback flash and the booster's landing burn.
+  - **Surface bases you can stand in**: the camera lands on displaced, crater-strewn terrain with boulders, rover tracks and long shadows. On Mars, a settlement under a butterscotch sky: landed Starships, habitat domes in regolith berms, glowing greenhouses, a solar field, an ISRU plant and a reactor. On the Moon, an outpost with regolith-shelled domes, vertical solar towers and a lunar lander, with the Earth hanging over the horizon.
+  - **Starships in transit** on the Earth–Mars route: brushed stainless hulls with ring seams, hexagonal heat-shield tiles, flaps, and vacuum Raptor plumes, followed by a chase camera.
 - 🌍 **Live Starlink hero** — a textured Earth wrapped in the real Starlink constellation. Every dot is an actual satellite, placed from public [CelesTrak](https://celestrak.org) orbital data and propagated in your browser with SGP4.
 - 🚀 **IPO Mission Control** — a live countdown to the Nasdaq open, the $1.77T valuation, the $75B raise, and the demand-vs-raise oversubscription, every figure sourced and dated.
 - 🛰️ **The Starlink mesh** — what the constellation is, and why it's the revenue engine under the IPO story.
@@ -40,7 +43,9 @@ Browser ──/──▶ Hono Worker (SSR HTML) ──▶ #scene <div>
 
 ## Tech stack
 
-[Cloudflare Workers](https://workers.cloudflare.com) · [Hono](https://hono.dev) (`hono/jsx` SSR) · [React 19](https://react.dev) · [React Three Fiber](https://r3f.docs.pmnd.rs) + [drei](https://github.com/pmndrs/drei) + postprocessing · [three.js](https://threejs.org) · [satellite.js](https://github.com/shashwatak/satellite-js) · [Tailwind CSS](https://tailwindcss.com) · esbuild
+[Cloudflare Workers](https://workers.cloudflare.com) · [Hono](https://hono.dev) (`hono/jsx` SSR) · [React 19](https://react.dev) · [React Three Fiber](https://r3f.docs.pmnd.rs) + [drei](https://github.com/pmndrs/drei) · [three.js](https://threejs.org) · [satellite.js](https://github.com/shashwatak/satellite-js) · [Blender](https://www.blender.org) (asset pipeline) · [Tailwind CSS](https://tailwindcss.com) · esbuild
+
+No postprocessing: glows are sprites and shader terms, so nothing can bloom-flicker.
 
 ## Run locally
 
@@ -65,8 +70,13 @@ src/
   data/              site.ts, ipo.ts (facts with source + lastVerified)
   routes/api.ts      /api/tle/starlink
   client/            React + R3F islands (built separately by esbuild)
-    scene/           Earth (day/night/normal), Starlink, Moon, Atmosphere, Sun, Experience
-    atlas/           /atlas experience: camera flights, Mars, bases, ships, dock UI
+    scene/           Earth (day/night/glint), Starlink glints, Moon, scattering Atmosphere, Experience
+    atlas/           /atlas experience:
+      render/          sky (stars + Milky Way), sun, env lighting, GLB materials, procedural textures
+      planets/         Moon/Mars bodies with procedural crater detail
+      terrain/         displaced terrain patches, boulders, baked ground detail
+      bases/           settlement layouts (shared with Blender), structures, landed vehicles
+      ships/           transit Starships, plumes, the cycler route, the Earth launch streak
     countdown.ts     tiny vanilla countdown
 public/textures/     planet maps (NASA-derived public domain + CC BY 4.0 Mars)
 ```
@@ -76,8 +86,8 @@ public/textures/     planet maps (NASA-derived public domain + CC BY 4.0 Mars)
 - **Orbital data:** [CelesTrak](https://celestrak.org) Starlink GP/TLE feed (public).
 - **Earth & Moon textures:** NASA-derived imagery (public domain), via the three.js examples.
 - **Mars texture:** [Solar System Scope](https://www.solarsystemscope.com/textures/) (CC BY 4.0).
-- **Surface-detail maps:** [ambientCG](https://ambientcg.com) brushed-steel + concrete (CC0 / public domain), downscaled and applied to the hulls and landing-pad decks at load (`src/client/atlas/useModel.ts`).
-- **Vehicles & bases:** original stylized designs, not official SpaceX models. Built procedurally with Blender: `tools/blender/build_assets.py` regenerates every GLB in `public/models/` (`blender --background --factory-startup --python tools/blender/build_assets.py`). The Mars/Moon outposts add landed Starships, an HLS-style lander, habs, greenhouses, solar fields, tanks and rovers; the camera frames each as a hero shot.
+- **Surface-detail maps:** [ambientCG](https://ambientcg.com) brushed-steel normal map (CC0 / public domain), applied to the hulls at load (`src/client/atlas/render/materials.ts`). Everything else is procedural: heat-shield tiles, solar cells, landing pads, crater fields and terrain are generated in the browser.
+- **Vehicles & bases:** original stylized designs, not official SpaceX models. Built procedurally with Blender: `tools/blender/build_assets.py` regenerates every GLB in `public/models/` (`blender --background --factory-startup --python tools/blender/build_assets.py`), laid out from `src/client/atlas/bases/layout.json`, which the app reads too.
 - **IPO figures:** public reporting (CNBC and others), each carrying a `source` + `lastVerified` in [`src/data/ipo.ts`](src/data/ipo.ts).
 
 ## Contributing
