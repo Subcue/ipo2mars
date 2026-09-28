@@ -109,4 +109,4 @@ export interface SurfaceLook {
 }
 
 export const MOON_LOOK: SurfaceLook = { craters: 1, density: 0.46, rough: 1, albedo: 0.2, bump: 1, cell0: 0.05 }
-export const MARS_LOOK: SurfaceLook = { craters: 0.4, density: 0.28, rough: 0.9, albedo: 0.16, bump: 1, cell0: 0.04 }
+export const MARS_LOOK: SurfaceLook = { craters: 0.3, density: 0.2, rough: 1, albedo: 0.2, bump: 1, cell0: 0.04 }

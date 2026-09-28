@@ -1,7 +1,7 @@
 /** @jsxImportSource react */
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { BackSide, CustomBlending, FrontSide, OneFactor, OneMinusSrcAlphaFactor, ShaderMaterial, Vector3 } from 'three'
+import { BackSide, CustomBlending, FrontSide, OneFactor, OneMinusSrcAlphaFactor, ShaderMaterial, Vector3, type Mesh } from 'three'
 import { SUN_DIR } from './sunlight'
 
 // Single-scattering atmosphere (Rayleigh + Mie, numerically integrated) on a
@@ -44,6 +44,7 @@ uniform float uHR;
 uniform float uHM;
 uniform float uG;
 uniform float uSun;
+uniform float uFade;
 
 vec2 raySphere(vec3 ro, vec3 rd, float r) {
   float b = dot(ro, rd);
@@ -104,7 +105,7 @@ void main() {
   vec3 col = uSun * (sumR * uBetaR * pr + sumM * uBetaM * pm);
   vec3 trans = exp(-(uBetaR * odR + extM * odM));
   float a = clamp(1.0 - dot(trans, vec3(0.3333)), 0.0, 1.0);
-  gl_FragColor = vec4(col, a);
+  gl_FragColor = vec4(col, a) * uFade;
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
@@ -154,6 +155,14 @@ interface AtmosphereProps {
   params?: AtmosphereParams
   steps?: number
   lightSteps?: number
+  /** Live strength 0..1 (the atlas hands the sky to a ground dome near the
+   *  surface); the shell hides at 0. */
+  fade?: () => number
+  /** Realistic-scale air for close views (low orbit): the shell blends from
+   *  `params` to these as `nearBlend` goes 0 -> 1, keeping the vertical
+   *  optical depth, so the limb thins to a bright blue line up close. */
+  near?: Pick<AtmosphereParams, 'top' | 'hR' | 'hM'>
+  nearBlend?: () => number
 }
 
 export function Atmosphere({
@@ -162,6 +171,9 @@ export function Atmosphere({
   params = EARTH_AIR,
   steps = 12,
   lightSteps = 4,
+  fade,
+  near,
+  nearBlend,
 }: AtmosphereProps) {
   const R = planetRadius
   const mat = useMemo(() => {
@@ -179,6 +191,7 @@ export function Atmosphere({
         uHM: { value: params.hM * R },
         uG: { value: params.g },
         uSun: { value: params.sun },
+        uFade: { value: 1 },
       },
       vertexShader: VERT,
       fragmentShader: frag(steps, lightSteps),
@@ -194,9 +207,39 @@ export function Atmosphere({
   }, [R, params, steps, lightSteps, center[0], center[1], center[2]])
 
   const c = useMemo(() => new Vector3(...center), [center[0], center[1], center[2]])
+  const mesh = useRef<Mesh>(null)
   useFrame(({ camera }) => {
-    // Inside the shell we see its far (back) faces: the sky from a base.
-    const inside = camera.position.distanceTo(c) < R * params.top * 1.012
+    const f = fade ? fade() : 1
+    mat.uniforms.uFade.value = f
+    if (mesh.current) mesh.current.visible = f > 0.002
+    let top = params.top
+    if (near && nearBlend) {
+      const k = nearBlend()
+      const u = mat.uniforms
+      top = params.top + (near.top - params.top) * k
+      const hR = params.hR + (near.hR - params.hR) * k
+      const hM = params.hM + (near.hM - params.hM) * k
+      u.uAtmoR.value = R * top
+      u.uHR.value = hR * R
+      u.uHM.value = hM * R
+      const rR = params.hR / hR
+      const rM = params.hM / hM
+      u.uBetaR.value.set(params.betaR[0] * rR, params.betaR[1] * rR, params.betaR[2] * rR).divideScalar(R)
+      u.uBetaM.value.set(params.betaM[0] * rM, params.betaM[1] * rM, params.betaM[2] * rM).divideScalar(R)
+      const ab = params.absorb ?? [0, 0, 0]
+      u.uAbsorb.value.set(ab[0] * rM, ab[1] * rM, ab[2] * rM).divideScalar(R)
+    }
+    // The proxy shell must wrap the air; from outside it we draw its near
+    // (front) faces, so they sit in front of the planet and cover its disc.
+    // When the air has thinned below the full-size proxy (low orbit), shrink
+    // the proxy to fit between the air and the camera. Only from inside the
+    // air itself (a base) do we draw the far (back) faces: the sky.
+    const full = R * params.top * 1.012
+    const d = camera.position.distanceTo(c)
+    const airTop = R * top
+    const inside = d < airTop * 1.002
+    const proxy = inside ? full : Math.min(full, Math.max(airTop * 1.001, (airTop + d) / 2))
+    if (mesh.current) mesh.current.scale.setScalar(proxy / full)
     const side = inside ? BackSide : FrontSide
     if (mat.side !== side) {
       mat.side = side
@@ -205,7 +248,7 @@ export function Atmosphere({
   })
 
   return (
-    <mesh position={center} renderOrder={2}>
+    <mesh ref={mesh} position={center} renderOrder={2}>
       <sphereGeometry args={[R * params.top * 1.012, 128, 64]} />
       <primitive object={mat} attach="material" />
     </mesh>

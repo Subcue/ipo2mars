@@ -2,7 +2,6 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Color, NormalBlending, type Group, type Sprite } from 'three'
-import layout from './layout.json'
 import { LandedStarship } from '../ships/Starship'
 import { Plume } from '../ships/Plume'
 import { glowTexture } from '../render/textures'
@@ -16,7 +15,6 @@ const LOOP = 52
 const T_TOUCH = 11
 const T_LIFT = 28
 const T_GONE = 42
-const [PX, PZ] = layout.mars.landing as [number, number]
 // sea-level Raptors: three centre engines (model metres, lifted on legs)
 const ENGINES = [30, 150, 270].map((d) => {
   const a = (d * Math.PI) / 180
@@ -29,7 +27,7 @@ const smooth = (a: number, b: number, x: number) => {
   return k * k * (3 - 2 * k)
 }
 
-export function MarsLanding() {
+export function MarsLanding({ pad: [PX, PZ], phase = 0, restart = false }: { pad: [number, number]; phase?: number; restart?: boolean }) {
   const ship = useRef<Group>(null)
   const burn = useRef<Group>(null)
   const dust = useRef<(Sprite | null)[]>([])
@@ -45,9 +43,9 @@ export function MarsLanding() {
     const b = burn.current
     if (!s || !b) return
     const close = camera.position.distanceTo(anchors.marsBase) < 0.12
-    if (close && !near.current && clock.elapsedTime - start.current > LOOP * 0.8) start.current = clock.elapsedTime + 1.5
+    if (restart && close && !near.current && clock.elapsedTime - start.current > LOOP * 0.8) start.current = clock.elapsedTime + 1.5
     near.current = close
-    const t = STILL ? T_TOUCH + 4 : (((clock.elapsedTime - start.current) % LOOP) + LOOP) % LOOP
+    const t = STILL ? T_TOUCH + 4 : (((clock.elapsedTime - start.current + phase) % LOOP) + LOOP) % LOOP
     let y = 0
     let thrust = 0
     let kick = 0

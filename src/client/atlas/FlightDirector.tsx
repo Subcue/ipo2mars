@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CameraControls } from '@react-three/drei'
-import { Quaternion, Vector3 } from 'three'
+import { Quaternion, Vector3, type Camera, type PerspectiveCamera } from 'three'
 import { DESTINATIONS, type DestKey } from './flight'
 import { anchors } from './stage'
 import { STILL } from '../scene/debug'
@@ -21,10 +21,13 @@ interface Flight {
   d0: number
   dir0: Vector3
   lift: number
+  fov0: number
 }
 
+const DEFAULT_FOV = 40
+
 /** Begin a flight from wherever the rig is now to `focus`. */
-function startFlight(c: CameraControls, focus: DestKey, reduced: boolean, minDur = 0): Flight {
+function startFlight(c: CameraControls, focus: DestKey, reduced: boolean, minDur = 0, fov0 = DEFAULT_FOV): Flight {
   const t0 = c.getTarget(new Vector3())
   const p0 = c.getPosition(new Vector3())
   const off = p0.clone().sub(t0)
@@ -45,7 +48,20 @@ function startFlight(c: CameraControls, focus: DestKey, reduced: boolean, minDur
     d0,
     dir0: off.divideScalar(d0),
     lift: Math.log(1 + travel / Math.max(d0, d1, 1e-3)) * 0.55,
+    fov0,
   }
+}
+
+function fovOf(focus: DestKey): number {
+  const f = DESTINATIONS[focus].fov
+  return typeof f === 'function' ? f() : (f ?? DEFAULT_FOV)
+}
+
+function setFov(camera: Camera, fov: number) {
+  const cam = camera as PerspectiveCamera
+  if (!cam.isPerspectiveCamera || Math.abs(cam.fov - fov) < 1e-4) return
+  cam.fov = fov
+  cam.updateProjectionMatrix()
 }
 
 function isReady(focus: DestKey) {
@@ -65,7 +81,18 @@ function isReady(focus: DestKey) {
 //   - the view direction slerps.
 // Once landed, moving targets are chased rigidly (the visitor's orbit offset
 // is kept) and a slow idle drift keeps the shot alive.
-export function FlightDirector({ focus, reduced, ready }: { focus: DestKey; reduced: boolean; ready: boolean }) {
+export function FlightDirector({
+  focus,
+  reduced,
+  ready,
+  onUserInput,
+}: {
+  focus: DestKey
+  reduced: boolean
+  ready: boolean
+  /** The visitor grabbed the camera (e.g. stops the guided tour). */
+  onUserInput?: () => void
+}) {
   const ref = useRef<CameraControls>(null)
   const three = useThree()
   const flight = useRef<Flight | null>(null)
@@ -95,6 +122,7 @@ export function FlightDirector({ focus, reduced, ready }: { focus: DestKey; redu
     if (!c) return
     const onStart = () => {
       lastInput.current = performance.now()
+      onUserInput?.()
       if (flight.current) {
         flight.current = null
         applyLimits(c, focus)
@@ -109,19 +137,19 @@ export function FlightDirector({ focus, reduced, ready }: { focus: DestKey; redu
       c.removeEventListener('controlstart', onStart)
       c.removeEventListener('control', onControl)
     }
-  }, [focus])
+  }, [focus, onUserInput])
 
   // A new destination: start a flight from wherever the camera is now.
   useEffect(() => {
     const c = ref.current
     if (!c || !placed.current) return
-    flight.current = startFlight(c, focus, reduced)
-  }, [focus, reduced])
+    flight.current = startFlight(c, focus, reduced, 0, (three.camera as PerspectiveCamera).fov)
+  }, [focus, reduced, three])
 
   // Priority -2: after the moving bodies publish their anchors (-3) and
   // before drei's CameraControls applies the rig to the camera (-1), so the
   // camera never lags a frame behind a moving target.
-  useFrame((_, dt) => {
+  useFrame(({ camera }, dt) => {
     const c = ref.current
     if (!c) return
     const dest = DESTINATIONS[focus]
@@ -144,6 +172,7 @@ export function FlightDirector({ focus, reduced, ready }: { focus: DestKey; redu
       if (focus !== 'overview') from.y += p.distanceTo(t) * 1.5
       c.setLookAt(from.x, from.y, from.z, t.x, t.y, t.z, false)
       placed.current = true
+      setFov(camera, DEFAULT_FOV)
       flight.current = startFlight(c, focus, reduced || STILL, 4.2)
       return
     }
@@ -183,6 +212,7 @@ export function FlightDirector({ focus, reduced, ready }: { focus: DestKey; redu
       }
       v.pos.copy(v.target).addScaledVector(v.dir, Math.exp(logD))
       c.setLookAt(v.pos.x, v.pos.y, v.pos.z, v.target.x, v.target.y, v.target.z, false)
+      setFov(camera, f.fov0 + (fovOf(focus) - f.fov0) * easeInOut(f.t))
       if (f.t >= 1) {
         flight.current = null
         applyLimits(c, focus)
@@ -199,13 +229,27 @@ export function FlightDirector({ focus, reduced, ready }: { focus: DestKey; redu
       const t = dest.target()
       v.pos.add(t)
       c.setLookAt(v.pos.x, v.pos.y, v.pos.z, t.x, t.y, t.z, false)
+    } else if (dest.aim) {
+      // hold the camera, turn to keep the action framed (eased by the rig)
+      const t = dest.target()
+      c.getPosition(v.pos, true)
+      c.setLookAt(v.pos.x, v.pos.y, v.pos.z, t.x, t.y, t.z, true)
     } else if (dest.tracks) {
       const t = dest.target()
       c.moveTo(t.x, t.y, t.z, false)
     }
+    if (typeof dest.fov === 'function') {
+      const cam = camera as PerspectiveCamera
+      setFov(camera, cam.fov + (fovOf(focus) - cam.fov) * Math.min(1, dt * 2.5))
+    }
     // Idle drift: a slow turntable once the visitor has let go for a while.
     if (dest.drift > 0 && !STILL && !reduced && performance.now() - lastInput.current > 6000) {
       c.rotate(dest.drift * dt, 0, false)
+    }
+    // Flat sites: never let the camera sink below the ground.
+    if (dest.floor !== undefined) {
+      c.getPosition(v.pos, true)
+      if (v.pos.y < dest.floor) c.setPosition(v.pos.x, dest.floor, v.pos.z, true)
     }
   }, -2)
 

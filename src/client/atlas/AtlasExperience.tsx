@@ -2,18 +2,19 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { PerformanceMonitor } from '@react-three/drei'
-import { ACESFilmicToneMapping } from 'three'
-import { Earth } from '../scene/Earth'
-import { Starlink } from '../scene/Starlink'
+import { ACESFilmicToneMapping, Vector3 } from 'three'
 import { Atmosphere, MARS_AIR } from '../scene/Atmosphere'
+import { EarthBody } from './planets/EarthBody'
+import { Refuel } from './orbit/Refuel'
 import { MarsBody } from './planets/MarsBody'
 import { MoonBody } from './planets/MoonBody'
 import { TransitShip } from './ships/TransitShip'
 import { TransitRoute } from './ships/TransitRoute'
+import { FleetStream, FleetWingmen } from './ships/Fleet'
 import { LaunchStreak } from './ships/LaunchStreak'
 import { OverviewLabels } from './ui/Labels'
-import { MARS_POS, MARS_RADIUS, view } from './stage'
-import { DESTINATIONS, EARTH_VIEW, isDestKey, type DestKey } from './flight'
+import { anchors, MARS_POS, MARS_RADIUS, STARBASE_POS, view } from './stage'
+import { DESTINATIONS, isDestKey, type DestKey } from './flight'
 import { FlightDirector } from './FlightDirector'
 import { Sky } from './render/Sky'
 import { SunGlare } from './render/SunGlare'
@@ -22,8 +23,7 @@ import { QUALITY } from './quality'
 import { Dock } from './ui/Dock'
 import { InfoCard } from './ui/InfoCard'
 import { Loader } from './ui/Loader'
-
-const AXIAL_TILT = 0.41
+import { TourCaption, useTour } from './ui/Tour'
 
 /** Keeps stage `view.aspect` in sync for the aspect-aware framing. */
 function ViewShape() {
@@ -39,7 +39,11 @@ function SceneReady({ onReady }: { onReady: () => void }) {
   }, [onReady])
   return null
 }
-const DOCK_KEYS: DestKey[] = ['overview', 'earth', 'moon', 'mars', 'ship']
+// Earth's air at real scale heights, for views from low orbit.
+const EARTH_NEAR_AIR = { top: 1.008, hR: 0.00133, hM: 0.00042 }
+// east at Starbase (world -X; see stage.ts EARTH_QUAT)
+const EAST = new Vector3(-1, 0, 0)
+const DOCK_KEYS: DestKey[] = ['overview', 'earth', 'starbase', 'refuel', 'moon', 'mars', 'ship']
 
 export function AtlasExperience() {
   const reduced = useMemo(() => matchMedia('(prefers-reduced-motion: reduce)').matches, [])
@@ -53,6 +57,24 @@ export function AtlasExperience() {
   // ~50 fps (the surface views are the heavy ones), back up when they can.
   const [dpr, setDpr] = useState(() => Math.min(QUALITY.dpr[1], window.devicePixelRatio || 1))
   const overview = focus === 'overview'
+  const tour = useTour(setFocus)
+  // any pick by the visitor (dock, map label, a click on a body) ends the tour
+  const pick = (k: DestKey) => {
+    tour.stop()
+    setFocus(k)
+  }
+  // Heavy surface assets load when a stop is first visited (and, on
+  // desktop, in the background once the stage is up), never all at startup.
+  const [wanted, setWanted] = useState<Partial<Record<DestKey, true>>>(() => ({ [focus]: true }))
+  useEffect(() => setWanted((w) => (w[focus] ? w : { ...w, [focus]: true })), [focus])
+  useEffect(() => {
+    if (!ready || QUALITY.low) return
+    const id = setTimeout(() => setWanted((w) => ({ ...w, starbase: true, refuel: true, moon: true, mars: true })), 5000)
+    return () => clearTimeout(id)
+  }, [ready])
+  useEffect(() => {
+    if (tour.playing) setWanted((w) => ({ ...w, starbase: true, refuel: true, moon: true, mars: true }))
+  }, [tour.playing])
 
   // Shareable: keep ?focus= in sync.
   useEffect(() => {
@@ -71,7 +93,7 @@ export function AtlasExperience() {
 
   const shadowFocus = useMemo<ShadowFocus | null>(() => {
     const d = DESTINATIONS[focus]
-    return d.shadow > 0 ? { center: d.target, radius: d.shadow, dynamic: !!d.tracks && focus === 'ship' } : null
+    return d.shadow > 0 ? { center: d.shadowCenter ?? d.target, radius: d.shadow, dynamic: !!d.tracks && focus === 'ship' } : null
   }, [focus])
 
   return (
@@ -104,47 +126,51 @@ export function AtlasExperience() {
         <Sky />
 
         <Suspense fallback={null}>
-          <group
-            rotation={[AXIAL_TILT, 0, 0]}
-            onClick={(e) => {
-              e.stopPropagation()
-              setFocus('earth')
-            }}
-            onPointerOver={(e) => {
-              e.stopPropagation()
-              setHovering(true)
-            }}
-            onPointerOut={() => setHovering(false)}
-          >
-            <Earth radius={1} />
-            <Starlink count={3000} radius={1} />
-          </group>
-          <MoonBody onClick={() => setFocus('moon')} onHover={setHovering} paused={focus === 'moon'} />
-          <MarsBody onClick={() => setFocus('mars')} onHover={setHovering} />
+          <EarthBody onClick={() => pick('earth')} onHover={setHovering} loadSite={!!wanted.starbase} />
+          <Refuel load={!!wanted.refuel} />
+          <MoonBody onClick={() => pick('moon')} onHover={setHovering} paused={focus === 'moon'} loadBase={!!wanted.moon} />
+          <MarsBody onClick={() => pick('mars')} onHover={setHovering} loadBase={!!wanted.mars} />
           {focus === 'overview' ? <TransitRoute /> : null}
-          <TransitShip onClick={() => setFocus('ship')} onHover={setHovering} primary beacon={overview ? 1 : 0} />
+          <FleetStream visible={overview} />
+          <FleetWingmen />
+          <TransitShip onClick={() => pick('ship')} onHover={setHovering} primary beacon={overview ? 1 : 0} />
           <TransitShip phase={0.36} primary={false} beacon={overview ? 0.8 : 0} />
           <TransitShip phase={0.68} primary={false} beacon={overview ? 0.8 : 0} />
-          {focus === 'earth' ? <LaunchStreak viewDir={EARTH_VIEW} /> : null}
-          <OverviewLabels visible={overview && ready} onSelect={setFocus} />
+          {focus === 'earth' ? <LaunchStreak pad={STARBASE_POS} east={EAST} /> : null}
+          <OverviewLabels visible={overview && ready} onSelect={pick} />
           <SceneReady onReady={() => setReady(true)} />
         </Suspense>
 
-        <Atmosphere planetRadius={1} steps={QUALITY.atmoSteps} lightSteps={QUALITY.atmoLightSteps} />
+        <Atmosphere
+          planetRadius={1}
+          steps={QUALITY.atmoSteps}
+          lightSteps={QUALITY.atmoLightSteps}
+          fade={() => anchors.airFade.earth}
+          near={EARTH_NEAR_AIR}
+          nearBlend={() => anchors.earthNear}
+        />
         <Atmosphere
           planetRadius={MARS_RADIUS}
           center={[MARS_POS.x, MARS_POS.y, MARS_POS.z]}
           params={MARS_AIR}
           steps={QUALITY.atmoSteps}
           lightSteps={QUALITY.atmoLightSteps}
+          fade={() => anchors.airFade.mars}
         />
 
         <SunGlare />
-        <FlightDirector focus={focus} reduced={reduced} ready={ready} />
+        <FlightDirector focus={focus} reduced={reduced} ready={ready} onUserInput={tour.stop} />
       </Canvas>
 
       <Loader ready={ready} />
-      <Dock keys={DOCK_KEYS} focus={focus} onSelect={setFocus} />
+      <TourCaption text={tour.caption} playing={tour.playing} step={tour.step} />
+      <Dock
+        keys={DOCK_KEYS}
+        focus={focus}
+        onSelect={pick}
+        touring={tour.playing}
+        onTour={tour.playing ? tour.stop : tour.play}
+      />
       <InfoCard focus={focus} />
 
       <p className="pointer-events-none absolute bottom-6 right-4 z-20 hidden text-right font-mono text-[10px] leading-relaxed text-white/30 sm:block sm:right-6">

@@ -126,19 +126,12 @@ const smooth = (a: number, b: number, x: number) => {
   return k * k * (3 - 2 * k)
 }
 
-export function LaunchStreak({ viewDir }: { viewDir: Vector3 }) {
+export function LaunchStreak({ pad: padDir, east: eastDir }: { pad: Vector3; east: Vector3 }) {
   const geo = useMemo(() => {
-    // Pad just on the lit side of the terminator, facing the Earth view.
-    const c = viewDir.clone().normalize()
-    const term = c.clone().addScaledVector(SUN_DIR, -c.dot(SUN_DIR)).normalize()
-    // a little onto the day side, and in from the limb toward the viewer
-    const n = term.clone().addScaledVector(SUN_DIR, 0.18).addScaledVector(c, 0.55).normalize()
+    // From the pad (Starbase) out over the Gulf toward the east.
+    const n = padDir.clone().normalize()
     const pad = n.clone().multiplyScalar(1.0005)
-    // downrange: toward screen-up along the limb, so the arc climbs across
-    // the frame instead of pointing at the camera
-    const right = new Vector3().crossVectors(c, new Vector3(0, 1, 0)).normalize()
-    const screenUp = new Vector3().crossVectors(right, c).normalize()
-    const east = screenUp.clone().addScaledVector(n, -screenUp.dot(n)).normalize()
+    const east = eastDir.clone().addScaledVector(n, -eastDir.dot(n)).normalize()
     const up = (alt: number, down: number) => {
       // point `down` along the surface (great circle), `alt` above it
       const a = down // radians of arc
@@ -164,7 +157,7 @@ export function LaunchStreak({ viewDir }: { viewDir: Vector3 }) {
       pad,
     ])
     return { pad, n, shipPath, boosterPath, ribbon: ribbon(shipPath, 220), stageU: 0.3 }
-  }, [viewDir])
+  }, [padDir, eastDir])
 
   const trailMat = useMemo(
     () =>

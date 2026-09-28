@@ -1,7 +1,7 @@
 /** @jsxImportSource react */
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { AdditiveBlending, Color, DoubleSide, PlaneGeometry, ShaderMaterial } from 'three'
+import { AdditiveBlending, Color, DoubleSide, PlaneGeometry, ShaderMaterial, type Group, type Sprite } from 'three'
 import { NOISE } from '../render/glsl'
 import { glowTexture } from '../render/textures'
 import { STILL } from '../../scene/debug'
@@ -72,6 +72,14 @@ function geometry() {
   return plumeGeo
 }
 
+/** Values a caller can change every frame without rebuilding the plume. */
+export interface PlumeLive {
+  length: number
+  width: number
+  intensity: number
+  halo: number
+}
+
 interface PlumeProps {
   length: number
   width: number
@@ -82,6 +90,11 @@ interface PlumeProps {
   diamonds?: number
   /** Throat glow sprite size (0 = none). */
   halo?: number
+  /** Live overrides, read every frame (throttle, a flame growing with
+   *  altitude); the props then only set the colours. */
+  live?: PlumeLive
+  /** Render order (a flame drawn after exhaust clouds glows through them). */
+  order?: number
 }
 
 export function Plume({
@@ -92,6 +105,8 @@ export function Plume({
   outer = '#5b7dff',
   diamonds = 0,
   halo = 0,
+  live,
+  order = 5,
 }: PlumeProps) {
   const mat = useMemo(
     () =>
@@ -115,17 +130,28 @@ export function Plume({
     [length, width, core, outer, diamonds, intensity],
   )
   const tex = useMemo(() => glowTexture(), [])
+  const root = useRef<Group>(null)
+  const sprite = useRef<Sprite>(null)
 
   useFrame(({ clock }) => {
     mat.uniforms.uTime.value = STILL ? 0 : clock.elapsedTime
+    if (!live) return
+    mat.uniforms.uLen.value = live.length
+    mat.uniforms.uWidth.value = live.width
+    mat.uniforms.uIntensity.value = live.intensity
+    if (root.current) root.current.visible = live.intensity > 0.002
+    if (sprite.current) {
+      sprite.current.scale.set(live.halo, live.halo, 1)
+      sprite.current.material.opacity = Math.min(1, live.intensity)
+    }
   })
 
-  if (intensity <= 0) return null
+  if (intensity <= 0 && !live) return null
   return (
-    <group>
-      <mesh geometry={geometry()} material={mat} frustumCulled={false} renderOrder={5} />
-      {halo > 0 ? (
-        <sprite scale={[halo, halo, 1]} renderOrder={6}>
+    <group ref={root}>
+      <mesh geometry={geometry()} material={mat} frustumCulled={false} renderOrder={order} />
+      {halo > 0 || live ? (
+        <sprite ref={sprite} scale={[halo, halo, 1]} renderOrder={order + 1}>
           <spriteMaterial
             map={tex}
             color={core}

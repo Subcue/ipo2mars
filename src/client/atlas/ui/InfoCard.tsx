@@ -1,5 +1,6 @@
 /** @jsxImportSource react */
 import { DESTINATIONS, type DestKey } from '../flight'
+import { LiveStatus } from './LiveStatus'
 
 export function InfoCard({ focus }: { focus: DestKey }) {
   const info = DESTINATIONS[focus].info
@@ -11,6 +12,7 @@ export function InfoCard({ focus }: { focus: DestKey }) {
         <a href={info.href} className="mt-2 inline-block text-[12px] font-medium text-accent hover:underline sm:mt-3 sm:text-[13px]">
           {info.link} →
         </a>
+        <LiveStatus focus={focus} />
       </div>
     </div>
   )

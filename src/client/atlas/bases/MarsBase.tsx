@@ -11,7 +11,9 @@ import { LandedStarship } from '../ships/Starship'
 import { Structures } from './Structures'
 import { MarsLanding } from './MarsLanding'
 import { useEnv } from '../render/useModel'
-import { BASE_SCALE, MARS_RADIUS } from '../stage'
+import { anchors, BASE_SCALE, MARS_RADIUS } from '../stage'
+import { HorizonRidge } from '../terrain/HorizonRidge'
+import { MARS_HAZE } from '../planets/MarsBody'
 
 const L = layout.mars
 const DEG = Math.PI / 180
@@ -22,9 +24,10 @@ export const MARS_TERRAIN: TerrainSpec = {
   extent: L.extent,
   flats: L.flats.map(([x, z, r]) => ({ x, z, r })),
   craters: [
-    ...L.craters.map(([x, z, r]) => ({ x, z, r, depth: 0.8 })),
-    ...scatterCraters(7, 70, L.extent * 0.55, 45, 220),
+    ...L.craters.map(([x, z, r]) => ({ x, z, r, depth: 0.6 })),
+    ...scatterCraters(7, 26, L.extent * 0.55, 45, 200).map((c) => ({ ...c, depth: c.depth * 0.55 })),
   ],
+  pits: L.pits.map(([x, z, r, depth]) => ({ x, z, r, depth })),
   seed: 3,
   curve: BASE_SCALE / (2 * MARS_RADIUS),
 }
@@ -36,7 +39,10 @@ export function MarsBase({
   map,
   baseToPlanet,
   onPatchUniforms,
+  load = true,
 }: {
+  /** Stream the settlement's models (on first visit). */
+  load?: boolean
   map: Texture
   baseToPlanet: Matrix4
   onPatchUniforms?: (u: PlanetUniforms) => void
@@ -59,6 +65,7 @@ export function MarsBase({
       <Rocks spec={MARS_TERRAIN} radius={MARS_RADIUS} color="#6e4330" env={env} seed={17} />
       <group scale={BASE_SCALE}>
         {/* Streams in on its own: never holds up the rest of the stage. */}
+        {load ? (
         <Suspense fallback={null}>
           <Structures kind="mars" />
           {ships.map((s, i) => (
@@ -66,8 +73,21 @@ export function MarsBase({
               <LandedStarship />
             </group>
           ))}
-          <MarsLanding />
+          <HorizonRidge
+            planetR={MARS_RADIUS / BASE_SCALE}
+            radius={4600}
+            minH={180}
+            maxH={1050}
+            seed={4.2}
+            color="#7a4a33"
+            haze={() => MARS_HAZE}
+            center={() => anchors.marsBase}
+            hideBeyond={0.25}
+          />
+          <MarsLanding pad={L.landing as [number, number]} phase={0} restart />
+          <MarsLanding pad={L.launch as [number, number]} phase={27} />
         </Suspense>
+        ) : null}
       </group>
     </group>
   )

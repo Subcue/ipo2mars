@@ -1,6 +1,6 @@
 /** @jsxImportSource react */
 import { useMemo } from 'react'
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import {
   AdditiveBlending,
   BackSide,
@@ -14,6 +14,7 @@ import {
 import { NOISE } from './glsl'
 import { SUN_DIR } from '../../scene/sunlight'
 import { QUALITY } from '../quality'
+import { EARTH_POS, MARS_POS, MARS_RADIUS } from '../stage'
 
 // The sky is drawn at infinity, first (renderOrder < 0, no depth test/write),
 // so every body rendered afterwards simply paints over it: planets occlude the
@@ -213,6 +214,11 @@ function dustGeometry(count: number): BufferGeometry {
   return g
 }
 
+function smooth(a: number, b: number, x: number) {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
+  return t * t * (3 - 2 * t)
+}
+
 export function Sky() {
   const dpr = useThree((s) => s.viewport.dpr)
   const { milky, milkyGeo, stars, dust, starMat, sunMat } = useMemo(() => {
@@ -260,6 +266,21 @@ export function Sky() {
     }
   }, [])
   starMat.uniforms.uPixelRatio.value = dpr
+  const tmp = useMemo(() => new Vector3(), [])
+
+  // Under a daylit sky (the ground at Starbase or on Mars) the stars and the
+  // Milky Way wash out, as they do for any eye or camera exposed for daylight.
+  useFrame(({ camera }) => {
+    const day = (center: Vector3, R: number, reach: number) => {
+      tmp.copy(camera.position).sub(center)
+      const alt = tmp.length() - R
+      const sun = tmp.normalize().dot(SUN_DIR)
+      return (1 - smooth(reach * 0.08, reach, alt)) * smooth(-0.14, 0.12, sun)
+    }
+    const k = Math.max(day(EARTH_POS, 1, 0.05), 0.92 * day(MARS_POS, MARS_RADIUS, 0.035))
+    starMat.uniforms.uIntensity.value = 1 - k
+    milky.uniforms.uIntensity.value = 0.016 * (1 - k)
+  })
 
   return (
     <group>
