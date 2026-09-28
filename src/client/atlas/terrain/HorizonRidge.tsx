@@ -30,6 +30,13 @@ interface Props {
   rough?: number
 }
 
+/** Value noise around the ring with `cycles` features per turn, seamless:
+ *  sampled on a circle in the noise plane rather than along a line. */
+function ringNoise(a: number, cycles: number, sx: number, sy: number): number {
+  const r = cycles / (Math.PI * 2)
+  return vnoise2(sx + Math.cos(a) * r, sy + Math.sin(a) * r)
+}
+
 export function HorizonRidge({ planetR, radius, minH, maxH, seed, color, haze, center, hideBeyond, relief = 1, rough = 1 }: Props) {
   const geo = useMemo(() => {
     const segs = 360
@@ -39,16 +46,15 @@ export function HorizonRidge({ planetR, radius, minH, maxH, seed, color, haze, c
       [700, 1, 1],
       [1400, 0.35, 1],
     ] as const
-    const pos = new Float32Array((segs + 1) * rows.length * 3)
+    const pos = new Float32Array(segs * rows.length * 3)
     const surf = (r: number) => Math.sqrt(planetR * planetR - r * r) - planetR
-    for (let k = 0; k <= segs; k++) {
+    for (let k = 0; k < segs; k++) {
       const a = (k / segs) * Math.PI * 2
-      const u = k / segs
       // a ragged crest: broad ranges, gaps, and sharp peaks
       const n =
-        vnoise2(u * 9 + seed, seed * 0.3) * (0.5 + 0.15 * (1 - rough)) +
-        vnoise2(u * 31 + seed * 2, 3.1) * 0.27 +
-        (vnoise2(u * 97, seed) * 0.1 + vnoise2(u * 260, seed + 7) * 0.05) * rough
+        ringNoise(a, 9, seed, seed * 0.3) * (0.5 + 0.15 * (1 - rough)) +
+        ringNoise(a, 31, seed * 2, 3.1) * 0.27 +
+        (ringNoise(a, 97, 0, seed) * 0.1 + ringNoise(a, 260, 7, seed + 7) * 0.05) * rough
       const crest = minH + (maxH - minH) * Math.pow(Math.max(0, n * 1.25 - 0.18), 1.4)
       rows.forEach(([dr, f, use], j) => {
         const r = radius + dr
@@ -59,11 +65,12 @@ export function HorizonRidge({ planetR, radius, minH, maxH, seed, color, haze, c
         pos[i + 2] = Math.sin(a) * r
       })
     }
+    // closed ring: the last column joins the first (no seam in shape or normals)
     const idx: number[] = []
     for (let k = 0; k < segs; k++) {
       for (let j = 0; j < rows.length - 1; j++) {
         const a = k * rows.length + j
-        const b = (k + 1) * rows.length + j
+        const b = ((k + 1) % segs) * rows.length + j
         idx.push(a, b, a + 1, b, b + 1, a + 1)
       }
     }
@@ -85,9 +92,10 @@ export function HorizonRidge({ planetR, radius, minH, maxH, seed, color, haze, c
           '#include <begin_vertex>',
           `#include <begin_vertex>
 vRObj = position;
-vR2V0 = normalMatrix * vec3(1.0, 0.0, 0.0);
-vR2V1 = normalMatrix * vec3(0.0, 1.0, 0.0);
-vR2V2 = normalMatrix * vec3(0.0, 0.0, 1.0);`,
+// normalMatrix also carries the inverse of the base's metre scale: keep only its rotation
+vR2V0 = normalize(normalMatrix * vec3(1.0, 0.0, 0.0));
+vR2V1 = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));
+vR2V2 = normalize(normalMatrix * vec3(0.0, 0.0, 1.0));`,
         )
       shader.fragmentShader = shader.fragmentShader
         .replace(
